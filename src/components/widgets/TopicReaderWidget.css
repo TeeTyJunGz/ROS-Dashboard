@@ -1,0 +1,60 @@
+.topic-reader-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topic-reader-content {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.topic-reader-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  font-style: italic;
+}
+
+.topic-reader-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.topic-reader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #444;
+}
+
+.topic-reader-topic {
+  color: #00d4ff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.topic-reader-timestamp {
+  color: #999;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.topic-reader-data {
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  line-height: 1.5;
+}
+

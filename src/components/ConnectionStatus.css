@@ -1,0 +1,22 @@
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.connection-status.connected {
+  background: rgba(0, 200, 0, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(0, 200, 0, 0.3);
+}
+
+.connection-status.disconnected {
+  background: rgba(200, 0, 0, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(200, 0, 0, 0.3);
+}
+

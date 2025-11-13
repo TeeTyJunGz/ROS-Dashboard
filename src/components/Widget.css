@@ -1,0 +1,70 @@
+.widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #2a2a2a;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #333;
+  border-bottom: 1px solid #444;
+  cursor: move;
+  user-select: none;
+}
+
+.widget-title {
+  font-weight: 600;
+  color: #00d4ff;
+  font-size: 0.9rem;
+}
+
+.widget-header-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.widget-settings,
+.widget-close {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.widget-settings:hover,
+.widget-close:hover {
+  background: #444;
+  color: #fff;
+}
+
+.widget-settings:active,
+.widget-close:active {
+  pointer-events: auto;
+}
+
+.widget-content {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-content:not(.no-padding) {
+  padding: 1rem;
+  overflow: auto;
+}
+

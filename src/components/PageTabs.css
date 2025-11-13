@@ -1,0 +1,115 @@
+.page-tabs {
+  width: 200px;
+  background: #2a2a2a;
+  border-right: 1px solid #3a3a3a;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.page-tabs-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.page-tab {
+  padding: 0.75rem 1rem;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.page-tab:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.page-tab.active {
+  background: #00d4ff;
+  color: #1a1a1a;
+  border-color: #00d4ff;
+  font-weight: 600;
+}
+
+.page-tab-name {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.page-tab-rename {
+  width: 100%;
+  padding: 0.25rem;
+  background: #1a1a1a;
+  border: 1px solid #00d4ff;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.page-tab-rename:focus {
+  outline: none;
+}
+
+.page-tab-add {
+  padding: 0.75rem;
+  background: #333;
+  border: none;
+  border-top: 1px solid #3a3a3a;
+  color: #00d4ff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.page-tab-add:hover {
+  background: #3a3a3a;
+}
+
+.page-context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  background: transparent;
+}
+
+.page-context-menu {
+  position: fixed;
+  min-width: 160px;
+  background: #2f2f2f;
+  border: 1px solid #444;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.page-context-menu-item {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.page-context-menu-item:hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
