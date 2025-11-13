@@ -9,17 +9,21 @@ const TopicReaderWidget = ({ widget }) => {
   const [lastMessage, setLastMessage] = useState(null)
 
   useEffect(() => {
-    if (topic) {
-      subscribeToTopic(topic, messageType || 'std_msgs/String')
+    if (!topic) {
+      return undefined
     }
+    subscribeToTopic(topic, messageType || 'std_msgs/String')
     return () => {
-      if (topic) {
-        unsubscribeFromTopic(topic)
-      }
+      unsubscribeFromTopic(topic)
     }
   }, [topic, messageType, subscribeToTopic, unsubscribeFromTopic])
 
   useEffect(() => {
+    setLastMessage(null)
+  }, [topic])
+
+  useEffect(() => {
+    if (!topic) return
     const message = messages[topic]
     if (message && message.data) {
       setLastMessage({

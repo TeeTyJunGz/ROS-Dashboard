@@ -11,17 +11,21 @@ const ChartWidget = ({ widget }) => {
   const [data, setData] = useState([])
 
   useEffect(() => {
-    if (topic) {
-      subscribeToTopic(topic, 'std_msgs/Float64')
+    if (!topic) {
+      return undefined
     }
+    subscribeToTopic(topic, 'std_msgs/Float64')
     return () => {
-      if (topic) {
-        unsubscribeFromTopic(topic)
-      }
+      unsubscribeFromTopic(topic)
     }
   }, [topic, subscribeToTopic, unsubscribeFromTopic])
 
   useEffect(() => {
+    setData([])
+  }, [topic])
+
+  useEffect(() => {
+    if (!topic) return
     if (!topic) return
     const message = messages[topic]
     if (message && message.data) {

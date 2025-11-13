@@ -68,6 +68,16 @@ const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename,
     }
     setContextMenu({ visible: false, x: 0, y: 0, pageId: null })
   }
+  const handleRenamePage = () => {
+    if (contextMenu.pageId) {
+      const page = pages.find(p => p.id === contextMenu.pageId)
+      if (page) {
+        setRenamingId(page.id)
+        setRenameValue(page.name)
+      }
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, pageId: null })
+  }
 
   return (
     <div className="page-tabs">
@@ -125,6 +135,9 @@ const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename,
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button className="page-context-menu-item-rename" onClick={handleRenamePage}>
+              Rename Page
+            </button>
             <button className="page-context-menu-item" onClick={handleDeletePage}>
               Delete Page
             </button>

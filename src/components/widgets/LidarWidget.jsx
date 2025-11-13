@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Points, PointMaterial } from '@react-three/drei'
 import { useWebSocket } from '../../context/WebSocketContext'
@@ -8,25 +8,41 @@ const LidarWidget = ({ widget }) => {
   const { messages, subscribeToTopic, unsubscribeFromTopic } = useWebSocket()
   const { subscribeTopic, pointSize } = widget.config || {}
   const topic = subscribeTopic
+  const [pointCloud, setPointCloud] = useState(() => generateMockPointCloud(1000))
 
   useEffect(() => {
-    if (topic) {
-      subscribeToTopic(topic, 'sensor_msgs/PointCloud2')
+    if (!topic) {
+      setPointCloud(generateMockPointCloud(1000))
+      return undefined
     }
+    subscribeToTopic(topic, 'sensor_msgs/PointCloud2')
     return () => {
-      if (topic) {
-        unsubscribeFromTopic(topic)
-      }
+      unsubscribeFromTopic(topic)
     }
   }, [topic, subscribeToTopic, unsubscribeFromTopic])
 
   useEffect(() => {
+    if (!topic) return
     const message = messages[topic]
     if (message && message.data) {
-      // In a real implementation, parse PointCloud2 data
-      // For MVP, we'll use mock data that's generated in the component
+      if (Array.isArray(message.data.points)) {
+        const flattened = []
+        for (const point of message.data.points) {
+          const { x = 0, y = 0, z = 0 } = point || {}
+          flattened.push(x, y, z)
+        }
+        if (flattened.length > 0) {
+          setPointCloud(flattened)
+          return
+        }
+      }
     }
   }, [messages, topic])
+
+  const pointSizeValue = useMemo(() => {
+    const parsed = parseFloat(pointSize)
+    return Number.isFinite(parsed) ? parsed : 2
+  }, [pointSize])
 
   return (
     <div className="lidar-widget">
@@ -34,7 +50,7 @@ const LidarWidget = ({ widget }) => {
         <Canvas camera={{ position: [0, 0, 10], fov: 75 }}>
           <ambientLight intensity={0.5} />
           <pointLight position={[10, 10, 10]} />
-          <PointCloud points={generateMockPointCloud(1000)} pointSize={pointSize || 2} />
+          <PointCloud points={pointCloud} pointSize={pointSizeValue} />
           <OrbitControls />
         </Canvas>
       </div>
@@ -43,8 +59,9 @@ const LidarWidget = ({ widget }) => {
 }
 
 function PointCloud({ points, pointSize }) {
+  const positions = useMemo(() => new Float32Array(points), [points])
   return (
-    <Points positions={points} limit={10000}>
+    <Points positions={positions} limit={10000}>
       <PointMaterial
         transparent
         color="#00d4ff"

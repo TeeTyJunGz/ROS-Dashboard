@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 
 const WebSocketContext = createContext(null)
 
@@ -20,7 +20,7 @@ export const WebSocketProvider = ({ children }) => {
   // Default: ws://localhost:8765 (Foxglove Bridge default port)
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8765'
 
-  const subscribeToTopic = (topic, messageType) => {
+  const subscribeToTopic = useCallback((topic, messageType) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn('WebSocket not connected, cannot subscribe to topic:', topic)
       return
@@ -35,9 +35,9 @@ export const WebSocketProvider = ({ children }) => {
 
     wsRef.current.send(JSON.stringify(subscribeMessage))
     console.log('Subscribed to topic:', topic)
-  }
+  }, [])
 
-  const unsubscribeFromTopic = (topic) => {
+  const unsubscribeFromTopic = useCallback((topic) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return
     }
@@ -49,9 +49,9 @@ export const WebSocketProvider = ({ children }) => {
 
     wsRef.current.send(JSON.stringify(unsubscribeMessage))
     console.log('Unsubscribed from topic:', topic)
-  }
+  }, [])
 
-  const publishMessage = (topic, messageType, message) => {
+  const publishMessage = useCallback((topic, messageType, message) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn('WebSocket not connected, cannot publish message')
       return
@@ -73,9 +73,9 @@ export const WebSocketProvider = ({ children }) => {
     }
 
     wsRef.current.send(JSON.stringify(messageData))
-  }
+  }, [])
 
-  const handleMessage = (data) => {
+  const handleMessage = useCallback((data) => {
     if (data.op === 'message' && data.topic) {
       setMessages(prev => ({
         ...prev,
@@ -85,9 +85,9 @@ export const WebSocketProvider = ({ children }) => {
         }
       }))
     }
-  }
+  }, [])
 
-  const connect = () => {
+  const connect = useCallback(() => {
     try {
       console.log('Connecting to Foxglove Bridge at:', WS_URL)
       const ws = new WebSocket(WS_URL)
@@ -129,9 +129,9 @@ export const WebSocketProvider = ({ children }) => {
       console.error('Failed to create WebSocket connection:', error)
       setIsConnected(false)
     }
-  }
+  }, [WS_URL, handleMessage, subscribeToTopic])
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
     }
@@ -140,7 +140,7 @@ export const WebSocketProvider = ({ children }) => {
       wsRef.current = null
     }
     setIsConnected(false)
-  }
+  }, [])
 
   useEffect(() => {
     // Auto-connect on mount
@@ -149,7 +149,7 @@ export const WebSocketProvider = ({ children }) => {
     return () => {
       disconnect()
     }
-  }, [])
+  }, [connect, disconnect])
 
   const value = {
     isConnected,

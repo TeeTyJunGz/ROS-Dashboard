@@ -68,13 +68,13 @@ const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) =
             Export your current dashboard configuration or import one shared by a teammate.
           </p>
           <div className="manager-actions">
-            <button className="manager-action-button" onClick={handleExport}>
-              <Download size={18} />
-              <span>Export Dashboard</span>
-            </button>
             <button className="manager-action-button" onClick={handleImportClick}>
-              <Upload size={18} />
+              <Download size={18} />
               <span>Import Dashboard</span>
+            </button>
+            <button className="manager-action-button" onClick={handleExport}>
+              <Upload size={18} />
+              <span>Export Dashboard</span>
             </button>
             <input
               ref={fileInputRef}

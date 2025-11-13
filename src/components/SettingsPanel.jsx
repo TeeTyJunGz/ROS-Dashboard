@@ -10,7 +10,8 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     maxData: widget?.config?.maxData || '',
     dataOut: widget?.config?.dataOut || '',
     field: widget?.config?.field || '',
-    label: widget?.config?.label || ''
+    label: widget?.config?.label || '',
+    pointSize: widget?.config?.pointSize !== undefined ? widget.config.pointSize.toString() : ''
   })
 
   useEffect(() => {
@@ -22,7 +23,8 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
         maxData: widget.config?.maxData || widget.config?.maxPoints || widget.config?.lines || (widget.config?.linearMax && widget.config?.angularMax ? `${widget.config.linearMax}, ${widget.config.angularMax}` : '') || '',
         dataOut: widget.config?.dataOut || widget.config?.message || '',
         field: widget.config?.field || '',
-        label: widget.config?.label || ''
+        label: widget.config?.label || '',
+        pointSize: widget.config?.pointSize !== undefined ? widget.config.pointSize.toString() : ''
       })
     }
   }, [widget])
@@ -35,6 +37,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
   const needsField = ['chart'].includes(widget.type)
   const needsSubscribe = !['camera', 'button', 'joystick'].includes(widget.type)
   const needsLabel = widget.type === 'button'
+  const needsPointSize = widget.type === 'lidar'
 
   const handleSave = () => {
     const config = {}
@@ -78,6 +81,11 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
       config.label = settings.label || 'Button'
     }
     
+    if (needsPointSize) {
+      const parsedPointSize = parseFloat(settings.pointSize)
+      config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 2
+    }
+
     // Also update legacy config fields for backward compatibility
     if (needsMaxData && settings.maxData) {
       if (widget.type === 'chart') config.maxPoints = parseInt(settings.maxData, 10) || 100
@@ -189,6 +197,20 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
                 value={settings.label}
                 onChange={(e) => setSettings({ ...settings, label: e.target.value })}
                 placeholder="Button"
+              />
+            </div>
+          )}
+
+          {needsPointSize && (
+            <div className="settings-section">
+              <label>Point Size</label>
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={settings.pointSize}
+                onChange={(e) => setSettings({ ...settings, pointSize: e.target.value })}
+                placeholder="e.g., 2"
               />
             </div>
           )}

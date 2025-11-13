@@ -97,7 +97,8 @@
   gap: 0.25rem;
 }
 
-.page-context-menu-item {
+.page-context-menu-item,
+.page-context-menu-item-rename {
   width: 100%;
   padding: 0.5rem 1rem;
   background: transparent;
@@ -109,7 +110,30 @@
   transition: background 0.2s ease;
 }
 
+.page-context-menu-item-rename {
+  color: #e0e0e0;
+}
+
+.page-context-menu-item-rename:hover {
+  background: rgba(0, 212, 255, 0.15);
+}
+
 .page-context-menu-item:hover {
   background: rgba(248, 113, 113, 0.15);
 }
 
+.page-context-menu-item-rename {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: #00d4ff;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.page-context-menu-item-rename:hover {
+  background: rgba(0, 212, 255, 0.15);
+}

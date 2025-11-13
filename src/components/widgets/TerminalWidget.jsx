@@ -11,17 +11,21 @@ const TerminalWidget = ({ widget }) => {
   const terminalRef = useRef(null)
 
   useEffect(() => {
-    if (topic) {
-      subscribeToTopic(topic, 'rosgraph_msgs/Log')
+    if (!topic) {
+      return undefined
     }
+    subscribeToTopic(topic, 'rosgraph_msgs/Log')
     return () => {
-      if (topic) {
-        unsubscribeFromTopic(topic)
-      }
+      unsubscribeFromTopic(topic)
     }
   }, [topic, subscribeToTopic, unsubscribeFromTopic])
 
   useEffect(() => {
+    setLogMessages([])
+  }, [topic])
+
+  useEffect(() => {
+    if (!topic) return
     const message = messages[topic]
     if (message && message.data) {
       const timestamp = new Date(message.timestamp).toLocaleTimeString()
