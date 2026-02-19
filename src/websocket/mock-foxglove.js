@@ -1,171 +1,275 @@
-// Simple mock Foxglove Bridge-like WebSocket server for local testing
+// Realistic TurtleBot ROS2 multi-robot mock Foxglove Bridge
 // Usage: npm run mock:bridge
-// Serves on ws://localhost:8765
+// Serves TurtleBot 1 on ws://localhost:8765 and TurtleBot 2 on ws://localhost:8766
 /* eslint-disable no-console */
 const WebSocket = require('ws')
 
-const PORT = process.env.MOCK_BRIDGE_PORT ? Number(process.env.MOCK_BRIDGE_PORT) : 8765
-const wss = new WebSocket.Server({ port: PORT })
+// Realistic TurtleBot ROS2 topic data simulator
+class TurtleBotSimulator {
+  constructor(robotId, robotName, port) {
+    this.robotId = robotId
+    this.robotName = robotName
+    this.port = port
+    this.wss = null
+    this.clients = new Set()
+    this.simulationData = {
+      odom: {
+        x: Math.random() * 10,
+        y: Math.random() * 10,
+        theta: Math.random() * Math.PI * 2,
+        vx: 0,
+        vy: 0,
+        vtheta: 0,
+      },
+      battery: 100,
+      imu: {
+        acc_x: 0,
+        acc_y: 0,
+        acc_z: 9.81,
+        gyro_x: 0,
+        gyro_y: 0,
+        gyro_z: 0,
+      },
+      scan: [],
+      camera_rgb: null,
+      diagnostics: {
+        status: 'OK',
+        errorCount: 0,
+        warningCount: 0,
+      },
+    }
 
-console.log(`[mock-foxglove] Starting on ws://localhost:${PORT}`)
+    // Pre-generate realistic lidar scan data
+    this.generateLidarScan()
+    this.generateCameraData()
+  }
 
-function now() {
-  return Date.now()
-}
+  generateLidarScan() {
+    // Simulate 360 degree lidar scan with 0.25 degree resolution (1440 points)
+    const scan = []
+    for (let i = 0; i < 1440; i++) {
+      const angle = (i / 1440) * Math.PI * 2
+      // Simulate obstacles and free space
+      const range = 5 + Math.random() * 18 - Math.abs(Math.sin(angle)) * 3
+      scan.push({
+        angle,
+        range: Math.max(0.1, range),
+        intensity: Math.random() * 255,
+      })
+    }
+    this.simulationData.scan = scan
+  }
 
-function envRateForTopic(topic, defaultHz) {
-  const key = topic.replace(/^\//, '').replace(/\//g, '_').toUpperCase()
-  const envKey = `MOCK_RATE_${key}`
-  const envValue = process.env[envKey]
-  if (envValue) {
-    const parsed = Number(envValue)
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed
+  generateCameraData() {
+    // Simulate camera feed with realistic RGB data
+    const width = 640
+    const height = 480
+    const data = []
+    for (let i = 0; i < width * height * 3; i++) {
+      data.push(Math.floor(Math.random() * 255))
+    }
+    this.simulationData.camera_rgb = {
+      width,
+      height,
+      encoding: 'rgb8',
+      frame_id: 'camera_link',
+      data: Buffer.from(data).toString('base64'),
     }
   }
-  if (process.env.MOCK_RATE_DEFAULT) {
-    const fallback = Number(process.env.MOCK_RATE_DEFAULT)
-    if (Number.isFinite(fallback) && fallback > 0) {
-      return fallback
+
+  start() {
+    this.wss = new WebSocket.Server({ port: this.port })
+    console.log(`🤖 ${this.robotName} Bridge simulator running on ws://localhost:${this.port}`)
+
+    this.wss.on('connection', (ws) => {
+      console.log(`✅ Client connected to ${this.robotName}`)
+      this.clients.add(ws)
+
+      ws.on('message', (message) => {
+        this.handleMessage(ws, message)
+      })
+
+      ws.on('close', () => {
+        this.clients.delete(ws)
+        console.log(`❌ Client disconnected from ${this.robotName}`)
+      })
+    })
+
+    // Start simulation loop - update data every 100ms (10Hz)
+    this.simulationInterval = setInterval(() => {
+      this.updateSimulation()
+      this.broadcastData()
+    }, 100)
+  }
+
+  updateSimulation() {
+    // Simulate odometry changes (position tracking)
+    this.simulationData.odom.x += this.simulationData.odom.vx * 0.1
+    this.simulationData.odom.y += this.simulationData.odom.vy * 0.1
+    this.simulationData.odom.theta += this.simulationData.odom.vtheta * 0.1
+
+    // Simulate battery drain slowly (realistic TurtleBot battery)
+    if (this.simulationData.battery > 20) {
+      this.simulationData.battery -= 0.02
+    }
+
+    // Simulate small IMU noise (accelerometer and gyro)
+    this.simulationData.imu.acc_x = (Math.random() - 0.5) * 0.5
+    this.simulationData.imu.acc_y = (Math.random() - 0.5) * 0.5
+    this.simulationData.imu.gyro_z = (Math.random() - 0.5) * 0.1
+
+    // Update scan with slight variations (lidar noise)
+    this.simulationData.scan.forEach((point) => {
+      point.range = Math.max(0.1, point.range + (Math.random() - 0.5) * 0.2)
+      point.intensity = Math.random() * 255
+    })
+
+    // Regenerate camera data occasionally (camera frame)
+    if (Math.random() < 0.1) {
+      this.generateCameraData()
     }
   }
-  return defaultHz
-}
 
-const TOPIC_CONFIGS = {
-  '/sensor_data': {
-    type: 'std_msgs/Float64',
-    hz: envRateForTopic('/sensor_data', 10),
-    generator: () => ({ value: (Math.sin(now() / 250) * 0.5 + 0.5) * 100 })
-  },
-  '/rosout': {
-    type: 'rosgraph_msgs/Log',
-    hz: envRateForTopic('/rosout', 2),
-    generator: () => ({ level: 2, name: 'mock_node', msg: `Mock log ${new Date().toLocaleTimeString()}` })
-  },
-  '/chatter': {
-    type: 'std_msgs/String',
-    hz: envRateForTopic('/chatter', 2),
-    generator: () => ({ data: `Hello @ ${new Date().toLocaleTimeString()}` })
-  },
-  '/velodyne_points': {
-    type: 'sensor_msgs/PointCloud2',
-    hz: envRateForTopic('/velodyne_points', 15),
-    generator: () => ({ points: generatePointCloudPoints(800) })
-  }
-}
+  broadcastData() {
+    const message = JSON.stringify({
+      type: 'message',
+      timestamp: Date.now(),
+      robotId: this.robotId,
+      robotName: this.robotName,
+      topics: {
+        '/odom': {
+          data: {
+            pose: {
+              pose: {
+                position: {
+                  x: this.simulationData.odom.x,
+                  y: this.simulationData.odom.y,
+                  z: 0,
+                },
+                orientation: {
+                  x: 0,
+                  y: 0,
+                  z: Math.sin(this.simulationData.odom.theta / 2),
+                  w: Math.cos(this.simulationData.odom.theta / 2),
+                },
+              },
+              twist: {
+                twist: {
+                  linear: {
+                    x: this.simulationData.odom.vx,
+                    y: this.simulationData.odom.vy,
+                    z: 0,
+                  },
+                  angular: {
+                    x: 0,
+                    y: 0,
+                    z: this.simulationData.odom.vtheta,
+                  },
+                },
+              },
+            },
+          },
+        },
+        '/scan': {
+          data: {
+            ranges: this.simulationData.scan.map((s) => s.range),
+            intensities: this.simulationData.scan.map((s) => s.intensity),
+            angle_min: 0,
+            angle_max: Math.PI * 2,
+            angle_increment: Math.PI * 2 / 1440,
+            time_increment: 0,
+            scan_time: 0.1,
+            range_min: 0.1,
+            range_max: 25.0,
+          },
+        },
+        '/battery_state': {
+          data: {
+            percentage: Math.max(20, Math.round(this.simulationData.battery)),
+            power_supply_status: 1,
+            power_supply_health: 2,
+          },
+        },
+        '/imu': {
+          data: {
+            linear_acceleration: {
+              x: this.simulationData.imu.acc_x,
+              y: this.simulationData.imu.acc_y,
+              z: this.simulationData.imu.acc_z,
+            },
+            angular_velocity: {
+              x: this.simulationData.imu.gyro_x,
+              y: this.simulationData.imu.gyro_y,
+              z: this.simulationData.imu.gyro_z,
+            },
+          },
+        },
+        '/camera/rgb/image_raw': {
+          data: this.simulationData.camera_rgb,
+        },
+      },
+    })
 
-function resolveTopicConfig(topic, requestedType) {
-  const base = TOPIC_CONFIGS[topic]
-  if (base) {
-    return {
-      ...base,
-      type: requestedType || base.type
-    }
-  }
-  const hz = envRateForTopic(topic, 5)
-  return {
-    type: requestedType || '',
-    hz,
-    generator: () => ({ data: Math.random() })
-  }
-}
-
-function generatePointCloudPoints(count) {
-  const points = []
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2
-    const radius = Math.random() * 5
-    const height = (Math.random() - 0.5) * 2
-    points.push({
-      x: Math.cos(angle) * radius,
-      y: height,
-      z: Math.sin(angle) * radius
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message)
+      }
     })
   }
-  return points
-}
 
-// Per-connection state
-function createClientState() {
-  return {
-    subscriptions: new Map(), // topic -> config
-    timers: new Map() // topic -> { intervalId }
-  }
-}
-
-function startTopicTimer(ws, state, topic, config) {
-  if (state.timers.has(topic)) return
-  const intervalMs = config.hz > 0 ? 1000 / config.hz : 1000
-  const intervalId = setInterval(() => {
-    if (ws.readyState !== WebSocket.OPEN) {
-      clearInterval(intervalId)
-      state.timers.delete(topic)
-      return
-    }
-    const msg = config.generator()
-    const frame = JSON.stringify({ op: 'message', topic, msg })
-    ws.send(frame)
-  }, intervalMs)
-  state.timers.set(topic, { intervalId, config })
-  console.log(`[mock-foxglove] streaming ${topic} @ ${config.hz} Hz`)
-}
-
-function stopTopicTimer(state, topic) {
-  const entry = state.timers.get(topic)
-  if (entry) {
-    clearInterval(entry.intervalId)
-    state.timers.delete(topic)
-  }
-}
-
-wss.on('connection', (ws) => {
-  console.log('[mock-foxglove] Client connected')
-  const state = createClientState()
-
-  ws.on('message', (raw) => {
-    let data
+  handleMessage(ws, message) {
     try {
-      data = JSON.parse(raw)
-    } catch {
-      console.warn('[mock-foxglove] Non-JSON message ignored')
-      return
-    }
+      const data = JSON.parse(message)
 
-    if (data.op === 'subscribe' && data.topic) {
-      const config = resolveTopicConfig(data.topic, data.type || '')
-      state.subscriptions.set(data.topic, config)
-      startTopicTimer(ws, state, data.topic, config)
-      console.log('[mock-foxglove] subscribe', data.topic, config.type)
-      return
-    }
-    if (data.op === 'unsubscribe' && data.topic) {
-      state.subscriptions.delete(data.topic)
-      stopTopicTimer(state, data.topic)
-      console.log('[mock-foxglove] unsubscribe', data.topic)
-      return
-    }
-    if (data.op === 'advertise') {
-      // No-op for mock; accept any advertise
-      return
-    }
-    if (data.op === 'publish') {
-      console.log('[mock-foxglove] publish', data.topic, data.msg)
-      // Echo back a confirmation or just ignore
-      return
-    }
-  })
+      // Handle command messages (e.g., publishing to cmd_vel)
+      if (data.type === 'publish' && data.topic === '/cmd_vel') {
+        this.simulationData.odom.vx = data.message.linear.x
+        this.simulationData.odom.vy = data.message.linear.y
+        this.simulationData.odom.vtheta = data.message.angular.z
+      }
 
-  ws.on('close', () => {
-    console.log('[mock-foxglove] Client disconnected')
-    // Cleanup timers
-    for (const id of state.timers.values()) clearInterval(id)
-    state.timers.clear()
-    state.subscriptions.clear()
-  })
-})
+      // Handle subscription requests
+      if (data.type === 'subscribe') {
+        ws.send(
+          JSON.stringify({
+            type: 'subscription_response',
+            topic: data.topic,
+            status: 'subscribed',
+          })
+        )
+      }
+    } catch (error) {
+      console.error(`Error handling message from ${this.robotName}:`, error)
+    }
+  }
 
-wss.on('listening', () => {
-  console.log(`[mock-foxglove] Ready on ws://localhost:${PORT}`)
+  stop() {
+    if (this.simulationInterval) {
+      clearInterval(this.simulationInterval)
+    }
+    if (this.wss) {
+      this.wss.close()
+    }
+  }
+}
+
+// Create and start two TurtleBot simulators running on different ports
+const turtlebot1 = new TurtleBotSimulator('turtlebot-1', 'TurtleBot 1', 8765)
+const turtlebot2 = new TurtleBotSimulator('turtlebot-2', 'TurtleBot 2', 8766)
+
+console.log('\n🚀 Starting Mock Foxglove Bridge with 2 TurtleBots...')
+console.log('📍 TurtleBot 1: ws://localhost:8765')
+console.log('📍 TurtleBot 2: ws://localhost:8766')
+console.log('🔴 Both robots are in connected state with realistic sensor data\n')
+
+turtlebot1.start()
+turtlebot2.start()
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down bridge...')
+  turtlebot1.stop()
+  turtlebot2.stop()
+  process.exit()
 })
 

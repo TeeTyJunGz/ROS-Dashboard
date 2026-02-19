@@ -1,0 +1,67 @@
+/* DashboardApp specific styles */
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(0, 212, 255, 0.1);
+  color: #00d4ff;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.back-button:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.4);
+  transform: translateX(-2px);
+}
+
+.app-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-header-title h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #e8e8ff;
+}
+
+.robot-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 6px;
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+  .app-header-left {
+    gap: 12px;
+  }
+
+  .app-header-title h1 {
+    font-size: 20px;
+  }
+
+  .robot-badge {
+    display: none;
+  }
+}
