@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-src/websocket/
+#src/websocket/
 package-lock.json
 yarn.lock
 
