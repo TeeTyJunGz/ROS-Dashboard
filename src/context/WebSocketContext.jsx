@@ -10,15 +10,17 @@ export const useWebSocket = () => {
   return context
 }
 
-export const WebSocketProvider = ({ children }) => {
+export const WebSocketProvider = ({ children, wsUrl = 'ws://localhost:8765' }) => {
   const [isConnected, setIsConnected] = useState(false)
   const [messages, setMessages] = useState({})
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
+  const currentUrlRef = useRef(wsUrl)
 
-  // Foxglove Bridge WebSocket URL
-  // Default: ws://localhost:8765 (Foxglove Bridge default port)
-  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8765'
+  // Update the URL reference whenever wsUrl changes
+  useEffect(() => {
+    currentUrlRef.current = wsUrl
+  }, [wsUrl])
 
   const subscribeToTopic = useCallback((topic, messageType) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -89,11 +91,11 @@ export const WebSocketProvider = ({ children }) => {
 
   const connect = useCallback(() => {
     try {
-      console.log('Connecting to Foxglove Bridge at:', WS_URL)
-      const ws = new WebSocket(WS_URL)
+      console.log('Connecting to Foxglove Bridge at:', currentUrlRef.current)
+      const ws = new WebSocket(currentUrlRef.current)
 
       ws.onopen = () => {
-        console.log('Connected to Foxglove Bridge')
+        console.log('Connected to Foxglove Bridge at:', currentUrlRef.current)
         setIsConnected(true)
         
         // Subscribe to common topics (can be customized)
@@ -129,7 +131,7 @@ export const WebSocketProvider = ({ children }) => {
       console.error('Failed to create WebSocket connection:', error)
       setIsConnected(false)
     }
-  }, [WS_URL, handleMessage, subscribeToTopic])
+  }, [subscribeToTopic])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -143,13 +145,21 @@ export const WebSocketProvider = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    // Auto-connect on mount
-    connect()
-
-    return () => {
+    // Disconnect old connection if URL changes
+    if (wsRef.current) {
       disconnect()
     }
-  }, [connect, disconnect])
+
+    // Auto-connect on mount or URL change
+    const timer = setTimeout(() => {
+      connect()
+    }, 100)
+
+    return () => {
+      clearTimeout(timer)
+      disconnect()
+    }
+  }, [wsUrl, connect, disconnect])
 
   const value = {
     isConnected,

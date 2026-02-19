@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import Dashboard, { MIN_SIZES_PX } from './components/Dashboard'
 import WidgetPanel from './components/WidgetPanel'
 import PageTabs from './components/PageTabs'
@@ -8,6 +8,7 @@ import DashboardManager from './components/DashboardManager'
 import ConnectionStatus from './components/ConnectionStatus'
 import { Plus, Settings as SettingsIcon, ArrowLeft } from 'lucide-react'
 import { useFleet } from './context/FleetContext'
+import { WebSocketProvider, useWebSocket } from './context/WebSocketContext'
 import './DashboardApp.css'
 
 const DEFAULT_STATE = {
@@ -70,10 +71,12 @@ function getDefaultConfig(widgetType) {
   return configs[widgetType] || {}
 }
 
-export default function DashboardApp() {
+// Inner component to monitor WebSocket status
+function DashboardContent() {
   const { robotId } = useParams()
-  const { getSelectedRobot } = useFleet()
-  const selectedRobot = getSelectedRobot()
+  const { getRobot, updateRobotStatus } = useFleet()
+  const { isConnected } = useWebSocket()
+  const selectedRobot = getRobot(robotId)
 
   const initialState = getInitialState(robotId)
   const [pages, setPages] = useState(initialState.pages)
@@ -81,6 +84,15 @@ export default function DashboardApp() {
   const [isWidgetPanelOpen, setIsWidgetPanelOpen] = useState(false)
   const [isManagerPanelOpen, setIsManagerPanelOpen] = useState(false)
   const [settingsWidgetId, setSettingsWidgetId] = useState(null)
+
+  // Monitor WebSocket connection and update robot status
+  useEffect(() => {
+    if (selectedRobot) {
+      const newStatus = isConnected ? 'connected' : 'disconnected'
+      updateRobotStatus(selectedRobot.id, newStatus)
+      console.log(`Robot ${selectedRobot.name} status updated to:`, newStatus)
+    }
+  }, [isConnected, selectedRobot, updateRobotStatus])
 
   const currentPage = pages.find(p => p.id === currentPageId) || pages[0]
   const currentWidgets = currentPage?.widgets || []
@@ -273,77 +285,92 @@ export default function DashboardApp() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <div className="app-header-left">
-          <a href="/" className="back-button" title="Back to fleet">
-            <ArrowLeft size={20} />
-          </a>
-          <div className="app-header-title">
-            <h1>ROS2 Dashboard</h1>
-            {selectedRobot && <span className="robot-badge">{selectedRobot.name}</span>}
+        <header className="app-header">
+          <div className="app-header-left">
+            <a href="/" className="back-button" title="Back to fleet">
+              <ArrowLeft size={20} />
+            </a>
+            <div className="app-header-title">
+              <h1>ROS2 Dashboard</h1>
+              {selectedRobot && <span className="robot-badge">{selectedRobot.name}</span>}
+            </div>
           </div>
+          <div className="app-header-right">
+            <button
+              className="dashboard-manage-toggle"
+              onClick={() => {
+                setIsWidgetPanelOpen(false)
+                setIsManagerPanelOpen(!isManagerPanelOpen)
+              }}
+              title="Import / Export dashboard"
+            >
+              <SettingsIcon size={20} />
+            </button>
+            <button
+              className="widget-panel-toggle"
+              onClick={() => {
+                setIsManagerPanelOpen(false)
+                setIsWidgetPanelOpen(!isWidgetPanelOpen)
+              }}
+              title="Add widget"
+            >
+              <Plus size={20} />
+            </button>
+            <ConnectionStatus />
+          </div>
+        </header>
+        <div className="app-content">
+          <PageTabs
+            pages={pages}
+            currentPageId={currentPageId}
+            onPageChange={handlePageChange}
+            onPageAdd={handlePageAdd}
+            onPageRename={handlePageRename}
+            onPageDelete={handlePageDelete}
+          />
+          <Dashboard
+            widgets={currentWidgets}
+            onRemoveWidget={removeWidget}
+            onLayoutChange={updateWidgetLayout}
+            onOpenSettings={handleOpenSettings}
+          />
         </div>
-        <div className="app-header-right">
-          <button
-            className="dashboard-manage-toggle"
-            onClick={() => {
-              setIsWidgetPanelOpen(false)
-              setIsManagerPanelOpen(!isManagerPanelOpen)
-            }}
-            title="Import / Export dashboard"
-          >
-            <SettingsIcon size={20} />
-          </button>
-          <button
-            className="widget-panel-toggle"
-            onClick={() => {
-              setIsManagerPanelOpen(false)
-              setIsWidgetPanelOpen(!isWidgetPanelOpen)
-            }}
-            title="Add widget"
-          >
-            <Plus size={20} />
-          </button>
-          <ConnectionStatus />
-        </div>
-      </header>
-      <div className="app-content">
-        <PageTabs
+        <WidgetPanel
+          isOpen={isWidgetPanelOpen}
+          onClose={() => setIsWidgetPanelOpen(false)}
+          onAddWidget={addWidget}
+        />
+        <SettingsPanel
+          widget={settingsWidget}
+          isOpen={!!settingsWidgetId}
+          onClose={handleCloseSettings}
+          onSave={handleSaveSettings}
+        />
+        <DashboardManager
+          isOpen={isManagerPanelOpen}
+          onClose={() => setIsManagerPanelOpen(false)}
           pages={pages}
           currentPageId={currentPageId}
-          onPageChange={handlePageChange}
-          onPageAdd={handlePageAdd}
-          onPageRename={handlePageRename}
-          onPageDelete={handlePageDelete}
-        />
-        <Dashboard
-          widgets={currentWidgets}
-          onRemoveWidget={removeWidget}
-          onLayoutChange={updateWidgetLayout}
-          onOpenSettings={handleOpenSettings}
+          onImport={(state) => {
+            handleImportDashboard(state)
+            setIsManagerPanelOpen(false)
+          }}
         />
       </div>
-      <WidgetPanel
-        isOpen={isWidgetPanelOpen}
-        onClose={() => setIsWidgetPanelOpen(false)}
-        onAddWidget={addWidget}
-      />
-      <SettingsPanel
-        widget={settingsWidget}
-        isOpen={!!settingsWidgetId}
-        onClose={handleCloseSettings}
-        onSave={handleSaveSettings}
-      />
-      <DashboardManager
-        isOpen={isManagerPanelOpen}
-        onClose={() => setIsManagerPanelOpen(false)}
-        pages={pages}
-        currentPageId={currentPageId}
-        onImport={(state) => {
-          handleImportDashboard(state)
-          setIsManagerPanelOpen(false)
-        }}
-      />
-    </div>
+    )
+}
+
+export default function DashboardApp() {
+  const { getRobot } = useFleet()
+  const { robotId } = useParams()
+  const selectedRobot = getRobot(robotId)
+
+  // Get the bridge URL from the selected robot
+  const bridgeUrl = selectedRobot?.bridgeUrl || 'ws://localhost:8765'
+
+  return (
+    <WebSocketProvider wsUrl={bridgeUrl}>
+      <DashboardContent />
+    </WebSocketProvider>
   )
 }
