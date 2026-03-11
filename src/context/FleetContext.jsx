@@ -109,7 +109,9 @@ export function FleetProvider({ children }) {
   const updateRobotIP = useCallback((robotId, ip) => {
     setRobots((prevRobots) =>
       prevRobots.map((robot) =>
-        robot.id === robotId ? { ...robot, ip } : robot
+        robot.id === robotId
+          ? { ...robot, ip, terminalUrl: `ws://${ip}:5001` }
+          : robot
       )
     )
   }, [])
