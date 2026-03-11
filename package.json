@@ -8,12 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "mock:bridge": "node src/websocket/mock-foxglove.js",
     "server": "node server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
-    "dev:fleet": "concurrently \"npm run dev\" \"npm run mock:bridge\" \"npm run server\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {
+    "@foxglove/rosmsg": "^5.0.5",
+    "@foxglove/rosmsg2-serialization": "^3.0.3",
+    "@foxglove/ws-protocol": "^0.8.0",
     "@react-three/drei": "^9.88.13",
     "@react-three/fiber": "^8.15.11",
     "cors": "^2.8.5",

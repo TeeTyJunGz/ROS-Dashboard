@@ -29,6 +29,10 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+FOXGLOVE_FIXES.md
+FOXGLOVE_MIGRATION.md
+MIGRATION_COMPLETE.md
+VALIDATION_CHECKLIST.md
 
 # Vite
 .vite/
