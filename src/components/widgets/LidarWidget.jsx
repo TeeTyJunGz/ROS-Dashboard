@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Points, PointMaterial } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useWebSocket } from '../../context/WebSocketContext'
 import './LidarWidget.css'
+
+const MAX_RENDER_POINTS = 6000
+const MIN_UPDATE_INTERVAL_MS = 50
 
 const LidarWidget = ({ widget }) => {
   const { messages, subscribeToTopic, unsubscribeFromTopic } = useWebSocket()
@@ -21,6 +24,7 @@ const LidarWidget = ({ widget }) => {
     messageType: 'waiting'
   })
   const subscriptionRef = useRef(null)
+  const lastProcessedAtRef = useRef(0)
 
   // Subscribe to topic once
   useEffect(() => {
@@ -42,7 +46,6 @@ const LidarWidget = ({ widget }) => {
       // Subscribe to new topic
       subscribeToTopic(topic)
       subscriptionRef.current = topic
-      console.log(`[LidarWidget] Subscribed to: ${topic}`)
     }
 
     return () => {
@@ -55,24 +58,27 @@ const LidarWidget = ({ widget }) => {
   }, [topic])
 
   // Process incoming messages and convert to point cloud
+  const topicMessage = topic ? messages[topic] : null
+
   useEffect(() => {
-    if (!topic || !messages[topic]) {
-      console.log(`[LidarWidget] No topic or no messages: topic=${topic}, hasMsg=${!!messages[topic]}`)
+    if (!topic || !topicMessage) {
       return
     }
 
-    const message = messages[topic]
-    if (!message || !message.data) {
-      console.log(`[LidarWidget] No message data`)
+    if (!topicMessage.data) {
       return
     }
 
-    const msgData = message.data
+    const now = performance.now()
+    if (now - lastProcessedAtRef.current < MIN_UPDATE_INTERVAL_MS) {
+      return
+    }
+    lastProcessedAtRef.current = now
+
+    const msgData = topicMessage.data
     let positions = []
     let colors = null
     let detectedType = null
-
-    console.log(`[LidarWidget] Processing message from ${topic}`)
 
     // Detect message type and parse accordingly
     if (msgData.ranges) {
@@ -81,32 +87,25 @@ const LidarWidget = ({ widget }) => {
       const result = parseLaserScan(msgData, useDistanceColor, customColor)
       positions = result.positions
       colors = result.colors
-      console.log(`[LidarWidget] Parsed LaserScan: ${positions.length / 3} points`)
     } else if (msgData.data || msgData.points) {
       // PointCloud2 message type
       detectedType = 'pointcloud2'
       const result = parsePointCloud2(msgData, useDistanceColor, customColor)
       positions = result.positions
       colors = result.colors
-      console.log(`[LidarWidget] Parsed PointCloud2: ${positions.length / 3} points`)
     } else {
       console.warn(`[LidarWidget] Unknown message type:`, Object.keys(msgData))
       return
     }
 
-    console.log(`[LidarWidget] Before setPointData: positions=${positions.length}, messageType=${detectedType}`)
-
     if (positions.length > 0) {
-      console.log(`[LidarWidget] Setting point data with ${positions.length / 3} points`)
       setPointData({
         positions,
         colors,
         messageType: detectedType
       })
-    } else {
-      console.warn(`[LidarWidget] No positions to render!`)
     }
-  }, [messages, topic, useDistanceColor, customColor])
+  }, [topicMessage, topic, useDistanceColor, customColor])
 
   const pointSizeValue = useMemo(() => {
     const parsed = parseFloat(pointSize)
@@ -116,7 +115,11 @@ const LidarWidget = ({ widget }) => {
   return (
     <div className="lidar-widget">
       <div className="lidar-canvas">
-        <Canvas camera={{ position: [0, 10, 15], fov: 75 }}>
+        <Canvas
+          camera={{ position: [0, 10, 15], fov: 75 }}
+          dpr={[1, 1.25]}
+          gl={{ antialias: false, powerPreference: 'high-performance' }}
+        >
           <ambientLight intensity={0.6} />
           <pointLight position={[10, 20, 10]} intensity={0.8} />
           <pointLight position={[-10, 15, -10]} intensity={0.4} />
@@ -163,25 +166,16 @@ function parseLaserScan(msgData, useDistanceColor, customColor) {
   const rangeMin = msgData.range_min || 0
   const rangeMax = msgData.range_max || 100
 
-  console.log(`[parseLaserScan] Received ${ranges.length} ranges`, {
-    angleMin,
-    angleMax,
-    angleIncrement,
-    rangeMin,
-    rangeMax,
-    firstRange: ranges[0],
-    lastRange: ranges[ranges.length - 1]
-  })
-
   const positions = []
   const colors = []
 
   let minDistance = Infinity
   let maxDistance = 0
+  const sampleStride = getSampleStride(ranges.length, MAX_RENDER_POINTS)
 
   // First pass: find min/max distances for color mapping and collect valid points
   const validPoints = []
-  for (let i = 0; i < ranges.length; i++) {
+  for (let i = 0; i < ranges.length; i += sampleStride) {
     const range = ranges[i]
     if (range >= rangeMin && range <= rangeMax && isFinite(range)) {
       validPoints.push({ index: i, range })
@@ -190,30 +184,26 @@ function parseLaserScan(msgData, useDistanceColor, customColor) {
     }
   }
 
-  console.log(`[parseLaserScan] Valid points: ${validPoints.length} / ${ranges.length}`)
-
   // Prevent division by zero
   if (minDistance === Infinity) {
-    console.warn('[parseLaserScan] No valid points found!')
     minDistance = 0
   }
   if (maxDistance === minDistance) {
     maxDistance = minDistance + 0.1
   }
 
-  console.log(`[parseLaserScan] Distance range: ${minDistance.toFixed(3)} - ${maxDistance.toFixed(3)}`)
-
   // Second pass: convert polar to Cartesian coordinates
   for (const point of validPoints) {
     const { index, range } = point
     const angle = angleMin + index * angleIncrement
 
-    // Convert polar (angle, range) to Cartesian (x, z) on horizontal plane (y=0)
-    const x = range * Math.cos(angle)
-    const z = range * Math.sin(angle)
-    const y = 0 // LaserScan is 2D, place on XZ plane
+    // ROS LaserScan is in the XY plane with Z up. Map it into a Three.js scene with Y up.
+    const rosX = range * Math.cos(angle)
+    const rosY = range * Math.sin(angle)
+    const rosZ = 0
+    const scenePoint = rosPointToScene(rosX, rosY, rosZ)
 
-    positions.push(x, y, z)
+    positions.push(scenePoint[0], scenePoint[1], scenePoint[2])
 
     // Calculate color based on distance
     if (useDistanceColor) {
@@ -225,8 +215,6 @@ function parseLaserScan(msgData, useDistanceColor, customColor) {
       colors.push(rgbColor[0], rgbColor[1], rgbColor[2])
     }
   }
-
-  console.log(`[parseLaserScan] Final: ${positions.length / 3} points, ${colors.length / 3} colors`)
 
   return {
     positions,
@@ -243,12 +231,14 @@ function parsePointCloud2(msgData, useDistanceColor, customColor) {
   const colors = []
 
   if (Array.isArray(msgData.points) && msgData.points.length > 0) {
+    const sampleStride = getSampleStride(msgData.points.length, MAX_RENDER_POINTS)
     // Structured point data
     let minDistance = Infinity
     let maxDistance = 0
 
     // First pass: find bounds
-    for (const point of msgData.points) {
+    for (let index = 0; index < msgData.points.length; index += sampleStride) {
+      const point = msgData.points[index]
       const x = point.x || 0
       const y = point.y || 0
       const z = point.z || 0
@@ -261,12 +251,14 @@ function parsePointCloud2(msgData, useDistanceColor, customColor) {
     if (maxDistance === minDistance) maxDistance = minDistance + 1
 
     // Second pass: add points with colors
-    for (const point of msgData.points) {
+    for (let index = 0; index < msgData.points.length; index += sampleStride) {
+      const point = msgData.points[index]
       const x = point.x || 0
       const y = point.y || 0
       const z = point.z || 0
+      const scenePoint = rosPointToScene(x, y, z)
 
-      positions.push(x, y, z)
+      positions.push(scenePoint[0], scenePoint[1], scenePoint[2])
 
       if (useDistanceColor) {
         const distance = Math.sqrt(x * x + y * y + z * z)
@@ -280,9 +272,143 @@ function parsePointCloud2(msgData, useDistanceColor, customColor) {
     }
   }
 
+  if (positions.length === 0 && msgData.fields && msgData.data && msgData.point_step) {
+    const fieldsByName = new Map((msgData.fields || []).map(field => [field.name, field]))
+    const xField = fieldsByName.get('x')
+    const yField = fieldsByName.get('y')
+    const zField = fieldsByName.get('z')
+
+    if (!xField || !yField || !zField) {
+      console.warn('[parsePointCloud2] Missing x/y/z fields:', msgData.fields)
+    } else {
+      const binaryData = toUint8Array(msgData.data)
+      const pointStep = msgData.point_step
+      const rowStep = msgData.row_step || pointStep * (msgData.width || 0)
+      const width = msgData.width || 0
+      const height = msgData.height || 1
+      const littleEndian = !msgData.is_bigendian
+
+      if (!binaryData || binaryData.length < pointStep) {
+        console.warn('[parsePointCloud2] Binary data missing or shorter than one point')
+      } else {
+        const view = new DataView(binaryData.buffer, binaryData.byteOffset, binaryData.byteLength)
+        const pointCount = width > 0 ? width * Math.max(height, 1) : Math.floor(binaryData.length / pointStep)
+        const sampleStride = getSampleStride(pointCount, MAX_RENDER_POINTS)
+        let minDistance = Infinity
+        let maxDistance = 0
+        const decodedPoints = []
+
+        for (let row = 0; row < Math.max(height, 1); row++) {
+          for (let col = 0; col < (width || pointCount); col += sampleStride) {
+            const baseOffset = height > 1 && rowStep
+              ? row * rowStep + col * pointStep
+              : col * pointStep
+
+            if (baseOffset + pointStep > binaryData.length) {
+              continue
+            }
+
+            const x = readPointField(view, baseOffset + xField.offset, xField.datatype, littleEndian)
+            const y = readPointField(view, baseOffset + yField.offset, yField.datatype, littleEndian)
+            const z = readPointField(view, baseOffset + zField.offset, zField.datatype, littleEndian)
+
+            if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+              continue
+            }
+
+            const distance = Math.sqrt(x * x + y * y + z * z)
+            decodedPoints.push({ x, y, z, distance })
+            minDistance = Math.min(minDistance, distance)
+            maxDistance = Math.max(maxDistance, distance)
+          }
+        }
+
+        if (decodedPoints.length === 0) {
+          console.warn('[parsePointCloud2] No valid points decoded from binary payload')
+        } else {
+          if (minDistance === Infinity) minDistance = 0
+          if (maxDistance === minDistance) maxDistance = minDistance + 0.1
+
+          for (const point of decodedPoints) {
+            const scenePoint = rosPointToScene(point.x, point.y, point.z)
+            positions.push(scenePoint[0], scenePoint[1], scenePoint[2])
+
+            if (useDistanceColor) {
+              const distanceBias = (point.distance - minDistance) / (maxDistance - minDistance)
+              const rgbColor = distanceToColor(distanceBias)
+              colors.push(rgbColor[0], rgbColor[1], rgbColor[2])
+            } else {
+              const rgbColor = hexToRgb(customColor)
+              colors.push(rgbColor[0], rgbColor[1], rgbColor[2])
+            }
+          }
+        }
+      }
+    }
+  }
+
   return {
     positions,
     colors: colors.length > 0 ? new Uint8Array(colors) : null
+  }
+}
+
+function toUint8Array(data) {
+  if (!data) {
+    return null
+  }
+
+  if (data instanceof Uint8Array) {
+    return data
+  }
+
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data)
+  }
+
+  if (Array.isArray(data)) {
+    return Uint8Array.from(data)
+  }
+
+  return null
+}
+
+function rosPointToScene(x, y, z) {
+  return [x, z, -y]
+}
+
+function getSampleStride(pointCount, maxPoints) {
+  if (!Number.isFinite(pointCount) || pointCount <= 0) {
+    return 1
+  }
+
+  return Math.max(1, Math.ceil(pointCount / maxPoints))
+}
+
+function readPointField(view, offset, datatype, littleEndian) {
+  switch (datatype) {
+    case 1:
+      return view.getInt8(offset)
+    case 2:
+      return view.getUint8(offset)
+    case 3:
+      return view.getInt16(offset, littleEndian)
+    case 4:
+      return view.getUint16(offset, littleEndian)
+    case 5:
+      return view.getInt32(offset, littleEndian)
+    case 6:
+      return view.getUint32(offset, littleEndian)
+    case 7:
+      return view.getFloat32(offset, littleEndian)
+    case 8:
+      return view.getFloat64(offset, littleEndian)
+    default:
+      return NaN
   }
 }
 
@@ -374,7 +500,6 @@ function PointCloudRenderer({ positions, colors, pointSize, useDistanceColor, cu
     }
 
     geometry.computeBoundingSphere()
-    console.log(`[PointCloudRenderer] Updated geometry with ${positions.length / 3} points`)
   }, [positions, colors])
 
   if (!positions || positions.length === 0) {

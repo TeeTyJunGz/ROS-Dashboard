@@ -117,7 +117,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
 
     if (needsPointSize) {
       const parsedPointSize = parseFloat(settings.pointSize)
-      config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 2
+      config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 0.1
       config.useDistanceColor = settings.useDistanceColor
       config.customColor = settings.customColor || '#00d4ff'
     }

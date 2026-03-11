@@ -61,7 +61,7 @@ const getDefaultSize = (widgetType) => {
 function getDefaultConfig(widgetType) {
   const configs = {
     camera: {},
-    lidar: { subscribeTopic: '/velodyne_points', pointSize: 2 },
+    lidar: { subscribeTopic: '/velodyne_points', pointSize: 0.1 },
     button: { publishTopic: '/cmd', dataOut: 'pressed', label: 'Button' },
     terminal: { subscribeTopic: '/rosout', maxData: '50' },
     joystick: { publishTopic: '/cmd_vel', maxData: '1.0, 1.0' },
