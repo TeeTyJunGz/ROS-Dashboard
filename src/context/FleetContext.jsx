@@ -6,9 +6,9 @@ const DEFAULT_ROBOTS = [
   {
     id: 'turtlebot-1',
     name: 'TurtleBot 1',
-    ip: '192.168.1.100',
+    ip: '192.168.1.69',
     status: 'connected',
-    bridgeUrl: 'ws://localhost:8765',
+    bridgeUrl: 'ws://192.168.1.69:8765',
     lastUpdated: new Date(),
   },
   {
@@ -16,7 +16,7 @@ const DEFAULT_ROBOTS = [
     name: 'TurtleBot 2',
     ip: '192.168.1.101',
     status: 'connected',
-    bridgeUrl: 'ws://localhost:8766',
+    bridgeUrl: 'ws://192.168.1.101:8765',
     lastUpdated: new Date(),
   },
 ]

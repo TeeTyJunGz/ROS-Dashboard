@@ -15,7 +15,9 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     dataOut: widget?.config?.dataOut || '',
     field: widget?.config?.field || '',
     label: widget?.config?.label || '',
-    pointSize: widget?.config?.pointSize !== undefined ? widget.config.pointSize.toString() : ''
+    pointSize: widget?.config?.pointSize !== undefined ? widget.config.pointSize.toString() : '',
+    useDistanceColor: widget?.config?.useDistanceColor !== false,
+    customColor: widget?.config?.customColor || '#00d4ff'
   })
 
   useEffect(() => {
@@ -28,7 +30,9 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
         dataOut: widget.config?.dataOut || widget.config?.message || '',
         field: widget.config?.field || '',
         label: widget.config?.label || '',
-        pointSize: widget.config?.pointSize !== undefined ? widget.config.pointSize.toString() : ''
+        pointSize: widget.config?.pointSize !== undefined ? widget.config.pointSize.toString() : '',
+        useDistanceColor: widget.config?.useDistanceColor !== false,
+        customColor: widget.config?.customColor || '#00d4ff'
       })
     }
   }, [widget])
@@ -114,6 +118,8 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     if (needsPointSize) {
       const parsedPointSize = parseFloat(settings.pointSize)
       config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 2
+      config.useDistanceColor = settings.useDistanceColor
+      config.customColor = settings.customColor || '#00d4ff'
     }
 
     // Also update legacy config fields for backward compatibility
@@ -230,17 +236,51 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
           )}
 
           {needsPointSize && (
-            <div className="settings-section">
-              <label>Point Size</label>
-              <input
-                type="number"
-                min="0.1"
-                step="0.1"
-                value={settings.pointSize}
-                onChange={(e) => setSettings({ ...settings, pointSize: e.target.value })}
-                placeholder="e.g., 2"
-              />
-            </div>
+            <>
+              <div className="settings-section">
+                <label>
+                  Point Size: <span className="settings-value">{settings.pointSize || '0.1'}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="1"
+                  step="0.01"
+                  value={settings.pointSize || 0.1}
+                  onChange={(e) => setSettings({ ...settings, pointSize: e.target.value })}
+                  className="settings-slider"
+                />
+              </div>
+
+              <div className="settings-section">
+                <label className="settings-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={settings.useDistanceColor}
+                    onChange={(e) => setSettings({ ...settings, useDistanceColor: e.target.checked })}
+                  />
+                  <span>Color by Distance</span>
+                </label>
+                <p className="settings-help-text">
+                  When enabled, colors points from red (near) to blue (far)
+                </p>
+              </div>
+
+              {!settings.useDistanceColor && (
+                <div className="settings-section">
+                  <label>Point Color</label>
+                  <div className="settings-color-input">
+                    <input
+                      type="color"
+                      value={settings.customColor}
+                      onChange={(e) => setSettings({ ...settings, customColor: e.target.value })}
+                      className="settings-color-picker"
+                    />
+                    <span className="settings-color-value">{settings.customColor}</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="settings-panel-footer">
