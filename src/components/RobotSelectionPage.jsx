@@ -5,21 +5,70 @@ import { useFleet } from '../context/FleetContext'
 import RobotCard from './RobotCard'
 import './RobotSelectionPage.css'
 
+const ROBOT_STATUS_POLL_MS = 5000
+
 export default function RobotSelectionPage() {
   const navigate = useNavigate()
-  const { robots, selectRobot } = useFleet()
+  const { robots, selectRobot, updateRobotStatus } = useFleet()
 
   useEffect(() => {
     // Page title
     document.title = 'Fleet Management - ROS2 Dashboard'
   }, [])
 
+  useEffect(() => {
+    if (robots.length === 0) {
+      return undefined
+    }
+
+    let isCancelled = false
+
+    const refreshRobotStatuses = async () => {
+      try {
+        const response = await fetch('/api/robots/status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            robots: robots.map((robot) => ({ id: robot.id, ip: robot.ip }))
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`Status request failed: ${response.status}`)
+        }
+
+        const result = await response.json()
+        if (isCancelled || !Array.isArray(result?.robots)) {
+          return
+        }
+
+        result.robots.forEach((robotStatus) => {
+          updateRobotStatus(robotStatus.id, robotStatus.alive ? 'online' : 'offline')
+        })
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to refresh robot statuses:', error)
+        }
+      }
+    }
+
+    refreshRobotStatuses()
+    const intervalId = window.setInterval(refreshRobotStatuses, ROBOT_STATUS_POLL_MS)
+
+    return () => {
+      isCancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [robots, updateRobotStatus])
+
   const handleSelectRobot = (robotId) => {
     selectRobot(robotId)
     navigate(`/dashboard/${robotId}`)
   }
 
-  const connectedCount = robots.filter((r) => r.status === 'connected').length
+  const onlineCount = robots.filter((r) => r.status === 'online').length
 
   return (
     <div className="robot-selection-page">
@@ -33,7 +82,7 @@ export default function RobotSelectionPage() {
             <div className="info-badge">
               <Wifi size={18} />
               <span>
-                {connectedCount}/{robots.length} Connected
+                {onlineCount}/{robots.length} Online
               </span>
             </div>
           </div>
@@ -66,13 +115,13 @@ export default function RobotSelectionPage() {
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: '#22c55e' }}>
-            {connectedCount}
+            {onlineCount}
           </div>
-          <div className="stat-label">Connected</div>
+          <div className="stat-label">Online</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: '#ef4444' }}>
-            {robots.length - connectedCount}
+            {robots.length - onlineCount}
           </div>
           <div className="stat-label">Offline</div>
         </div>

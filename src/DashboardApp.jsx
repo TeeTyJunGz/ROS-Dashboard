@@ -8,7 +8,7 @@ import DashboardManager from './components/DashboardManager'
 import ConnectionStatus from './components/ConnectionStatus'
 import { Plus, Settings as SettingsIcon, ArrowLeft } from 'lucide-react'
 import { useFleet } from './context/FleetContext'
-import { WebSocketProvider, useWebSocket } from './context/WebSocketContext'
+import { WebSocketProvider } from './context/WebSocketContext'
 import './DashboardApp.css'
 
 const DEFAULT_STATE = {
@@ -74,8 +74,7 @@ function getDefaultConfig(widgetType) {
 // Inner component to monitor WebSocket status
 function DashboardContent() {
   const { robotId } = useParams()
-  const { getRobot, updateRobotStatus } = useFleet()
-  const { isConnected } = useWebSocket()
+  const { getRobot } = useFleet()
   const selectedRobot = getRobot(robotId)
 
   const initialState = getInitialState(robotId)
@@ -84,15 +83,6 @@ function DashboardContent() {
   const [isWidgetPanelOpen, setIsWidgetPanelOpen] = useState(false)
   const [isManagerPanelOpen, setIsManagerPanelOpen] = useState(false)
   const [settingsWidgetId, setSettingsWidgetId] = useState(null)
-
-  // Monitor WebSocket connection and update robot status
-  useEffect(() => {
-    if (selectedRobot) {
-      const newStatus = isConnected ? 'connected' : 'disconnected'
-      updateRobotStatus(selectedRobot.id, newStatus)
-      console.log(`Robot ${selectedRobot.name} status updated to:`, newStatus)
-    }
-  }, [isConnected, selectedRobot, updateRobotStatus])
 
   const currentPage = pages.find(p => p.id === currentPageId) || pages[0]
   const currentWidgets = currentPage?.widgets || []

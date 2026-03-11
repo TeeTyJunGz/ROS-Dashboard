@@ -4,6 +4,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const WebSocket = require('ws')
+const { execFile } = require('child_process')
 const { spawn } = require('node-pty')
 const { randomUUID } = require('crypto')
 const AnsiToHtml = require('ansi-to-html')
@@ -97,8 +98,55 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Dashboard API server is running' })
 })
 
+/**
+ * POST /api/robots/status
+ * Check whether robot hosts respond to ping independently of Foxglove bridge status.
+ * Body: { robots: [{ id: string, ip: string }] }
+ */
+app.post('/api/robots/status', async (req, res) => {
+  try {
+    const robots = Array.isArray(req.body?.robots) ? req.body.robots : []
+    if (robots.length === 0) {
+      return res.status(400).json({ error: 'robots array is required' })
+    }
+
+    const results = await Promise.all(
+      robots.map(async (robot) => {
+        const ip = typeof robot?.ip === 'string' ? robot.ip.trim() : ''
+        if (!ip) {
+          return {
+            id: robot?.id,
+            ip,
+            alive: false
+          }
+        }
+
+        const alive = await pingHost(ip)
+        return {
+          id: robot.id,
+          ip,
+          alive
+        }
+      })
+    )
+
+    res.json({ robots: results })
+  } catch (error) {
+    console.error('Robot status check error:', error)
+    res.status(500).json({ error: 'Failed to check robot status' })
+  }
+})
+
 // Terminal Session Manager
 const terminalSessions = new Map()
+
+function pingHost(ip) {
+  return new Promise((resolve) => {
+    execFile('ping', ['-c', '1', '-W', '1', ip], (error) => {
+      resolve(!error)
+    })
+  })
+}
 
 // WebSocket Server for Terminal (separate from Express)
 const wss = new WebSocket.Server({ port: 5001 })

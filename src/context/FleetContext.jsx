@@ -2,24 +2,67 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 const FleetContext = createContext()
 
+const DEFAULT_BRIDGE_PORT = 8765
+
+const buildBridgeUrl = (ip, bridgePort = DEFAULT_BRIDGE_PORT) => `ws://${ip}:${bridgePort}`
+
 const DEFAULT_ROBOTS = [
   {
     id: 'turtlebot-1',
     name: 'TurtleBot 1',
     ip: '192.168.1.69',
-    status: 'connected',
-    bridgeUrl: 'ws://192.168.1.69:8765',
+    bridgePort: DEFAULT_BRIDGE_PORT,
+    status: 'unknown',
+    bridgeUrl: buildBridgeUrl('192.168.1.69', DEFAULT_BRIDGE_PORT),
     lastUpdated: new Date(),
   },
   {
     id: 'turtlebot-2',
     name: 'TurtleBot 2',
-    ip: '192.168.1.101',
-    status: 'connected',
-    bridgeUrl: 'ws://192.168.1.101:8765',
+    ip: '192.168.1.85',
+    bridgePort: DEFAULT_BRIDGE_PORT,
+    status: 'unknown',
+    bridgeUrl: buildBridgeUrl('192.168.1.85', DEFAULT_BRIDGE_PORT),
     lastUpdated: new Date(),
   },
 ]
+
+const getBridgePortFromRobot = (robot) => {
+  if (Number.isFinite(robot?.bridgePort)) {
+    return robot.bridgePort
+  }
+
+  if (typeof robot?.bridgePort === 'string' && robot.bridgePort.trim() !== '') {
+    const parsedPort = parseInt(robot.bridgePort, 10)
+    if (Number.isFinite(parsedPort)) {
+      return parsedPort
+    }
+  }
+
+  if (typeof robot?.bridgeUrl === 'string') {
+    try {
+      return parseInt(new URL(robot.bridgeUrl).port, 10) || DEFAULT_BRIDGE_PORT
+    } catch (error) {
+      // Ignore malformed stored URLs and fall back to the default port.
+    }
+  }
+
+  return DEFAULT_BRIDGE_PORT
+}
+
+const normalizeRobot = (robot) => {
+  const bridgePort = getBridgePortFromRobot(robot)
+  const ip = robot?.ip || '127.0.0.1'
+
+  return {
+    ...robot,
+    ip,
+    bridgePort,
+    status: robot?.status || 'unknown',
+    bridgeUrl: buildBridgeUrl(ip, bridgePort),
+    lastUpdated: robot?.lastUpdated || new Date(),
+  }
+}
 
 // Helper function to slugify names to IDs
 const slugifyName = (name) => {
@@ -55,7 +98,7 @@ const getInitialRobots = () => {
     if (stored) {
       const parsed = JSON.parse(stored)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed
+        return parsed.map(normalizeRobot)
       }
     }
   } catch (error) {
@@ -110,20 +153,53 @@ export function FleetProvider({ children }) {
     setRobots((prevRobots) =>
       prevRobots.map((robot) =>
         robot.id === robotId
-          ? { ...robot, ip, terminalUrl: `ws://${ip}:5001` }
+          ? {
+              ...robot,
+              ip,
+              bridgeUrl: buildBridgeUrl(ip, getBridgePortFromRobot(robot)),
+              terminalUrl: `ws://${ip}:5001`
+            }
+          : robot
+      )
+    )
+  }, [])
+
+  const updateRobotBridgePort = useCallback((robotId, bridgePort) => {
+    const parsedPort = parseInt(bridgePort, 10)
+    const nextBridgePort = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_BRIDGE_PORT
+
+    setRobots((prevRobots) =>
+      prevRobots.map((robot) =>
+        robot.id === robotId
+          ? {
+              ...robot,
+              bridgePort: nextBridgePort,
+              bridgeUrl: buildBridgeUrl(robot.ip, nextBridgePort)
+            }
           : robot
       )
     )
   }, [])
 
   const updateRobotStatus = useCallback((robotId, status) => {
-    setRobots((prevRobots) =>
-      prevRobots.map((robot) =>
-        robot.id === robotId 
-          ? { ...robot, status, lastUpdated: new Date() } 
-          : robot
-      )
-    )
+    setRobots((prevRobots) => {
+      let hasChanged = false
+
+      const nextRobots = prevRobots.map((robot) => {
+        if (robot.id !== robotId) {
+          return robot
+        }
+
+        if (robot.status === status) {
+          return robot
+        }
+
+        hasChanged = true
+        return { ...robot, status, lastUpdated: new Date() }
+      })
+
+      return hasChanged ? nextRobots : prevRobots
+    })
   }, [])
 
   const getRobot = useCallback((robotId) => {
@@ -146,6 +222,7 @@ export function FleetProvider({ children }) {
     selectRobot,
     updateRobotName,
     updateRobotIP,
+    updateRobotBridgePort,
     updateRobotStatus,
     getRobot,
     getRobotByOldId,

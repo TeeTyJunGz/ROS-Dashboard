@@ -156,6 +156,10 @@
   flex: 1;
 }
 
+.robot-bridge-url {
+  overflow-wrap: anywhere;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -167,6 +171,10 @@
   color: #22c55e;
   font-size: 13px;
   font-weight: 500;
+}
+
+.status-badge span {
+  color: inherit;
 }
 
 .status-badge.disconnected {

@@ -1,22 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
 import { Power, Edit2, Check, X } from 'lucide-react'
 import { useFleet } from '../context/FleetContext'
 import './RobotCard.css'
 
 export default function RobotCard({ robot, onSelect }) {
-  const navigate = useNavigate()
-  const { updateRobotName, updateRobotIP } = useFleet()
+  const { updateRobotName, updateRobotIP, updateRobotBridgePort } = useFleet()
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingIP, setIsEditingIP] = useState(false)
+  const [isEditingPort, setIsEditingPort] = useState(false)
   const [tempName, setTempName] = useState(robot.name)
   const [tempIP, setTempIP] = useState(robot.ip)
+  const [tempPort, setTempPort] = useState(String(robot.bridgePort || 8765))
   const [oldRobotId, setOldRobotId] = useState(robot.id)
 
   useEffect(() => {
     setTempName(robot.name)
     setTempIP(robot.ip)
-  }, [robot.name, robot.ip, robot.id])
+    setTempPort(String(robot.bridgePort || 8765))
+    setOldRobotId(robot.id)
+  }, [robot.name, robot.ip, robot.bridgePort, robot.id])
 
   const handleSaveName = () => {
     if (tempName.trim()) {
@@ -48,6 +50,21 @@ export default function RobotCard({ robot, onSelect }) {
     }
   }
 
+  const handleSavePort = () => {
+    if (tempPort.trim()) {
+      updateRobotBridgePort(robot.id, tempPort)
+      setIsEditingPort(false)
+    }
+  }
+
+  const handleKeyDownPort = (e) => {
+    if (e.key === 'Enter') {
+      handleSavePort()
+    } else if (e.key === 'Escape') {
+      handleCancelPort()
+    }
+  }
+
   const handleCancelName = () => {
     setTempName(robot.name)
     setIsEditingName(false)
@@ -58,8 +75,21 @@ export default function RobotCard({ robot, onSelect }) {
     setIsEditingIP(false)
   }
 
-  const statusColor = robot.status === 'connected' ? '#22c55e' : '#ef4444'
-  const statusText = robot.status === 'connected' ? 'Connected' : 'Disconnected'
+  const handleCancelPort = () => {
+    setTempPort(String(robot.bridgePort || 8765))
+    setIsEditingPort(false)
+  }
+
+  const statusColor = robot.status === 'online'
+    ? '#22c55e'
+    : robot.status === 'offline'
+      ? '#ef4444'
+      : '#f59e0b'
+  const statusText = robot.status === 'online'
+    ? 'Online'
+    : robot.status === 'offline'
+      ? 'Offline'
+      : 'Checking'
 
   return (
     <div className="robot-card">
@@ -154,7 +184,10 @@ export default function RobotCard({ robot, onSelect }) {
 
         <div className="robot-info-group">
           <label>Status</label>
-          <div className="status-badge" style={{ borderColor: statusColor }}>
+          <div
+            className={`status-badge ${robot.status === 'offline' ? 'disconnected' : ''}`}
+            style={{ borderColor: statusColor, color: statusColor }}
+          >
             <Power size={16} style={{ color: statusColor }} />
             <span>{statusText}</span>
           </div>
@@ -162,7 +195,50 @@ export default function RobotCard({ robot, onSelect }) {
 
         <div className="robot-info-group">
           <label>Bridge Port</label>
-          <p className="robot-port">{robot.bridgeUrl.split(':').pop()}</p>
+          {isEditingPort ? (
+            <div className="edit-input-group">
+              <input
+                type="number"
+                value={tempPort}
+                onChange={(e) => setTempPort(e.target.value)}
+                onKeyDown={handleKeyDownPort}
+                autoFocus
+                className="robot-ip-input"
+                min="1"
+                max="65535"
+              />
+              <button
+                onClick={handleSavePort}
+                className="edit-btn save-btn"
+                title="Save"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={handleCancelPort}
+                className="edit-btn cancel-btn"
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="robot-ip-section">
+              <p className="robot-port">{robot.bridgePort || 8765}</p>
+              <button
+                onClick={() => setIsEditingPort(true)}
+                className="edit-btn"
+                title="Edit bridge port"
+              >
+                <Edit2 size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="robot-info-group">
+          <label>Bridge URL</label>
+          <p className="robot-port robot-bridge-url">{robot.bridgeUrl}</p>
         </div>
       </div>
 
@@ -170,7 +246,7 @@ export default function RobotCard({ robot, onSelect }) {
         <button
           onClick={() => onSelect(robot.id)}
           className="select-btn"
-          disabled={robot.status !== 'connected'}
+          disabled={robot.status === 'offline'}
         >
           Open Dashboard →
         </button>
