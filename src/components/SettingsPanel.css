@@ -16,11 +16,16 @@
   background: #2a2a2a;
   border: 1px solid #3a3a3a;
   border-radius: 8px;
-  width: 400px;
+  width: 560px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.settings-panel-large {
+  width: 600px;
+  max-height: 90vh;
 }
 
 .settings-panel-header {

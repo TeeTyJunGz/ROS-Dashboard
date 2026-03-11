@@ -16,7 +16,7 @@ const TopicReaderWidget = ({ widget }) => {
     return () => {
       unsubscribeFromTopic(topic)
     }
-  }, [topic, messageType, subscribeToTopic, unsubscribeFromTopic])
+  }, [topic, messageType])
 
   useEffect(() => {
     setLastMessage(null)

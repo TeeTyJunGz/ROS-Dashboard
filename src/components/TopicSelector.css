@@ -1,0 +1,90 @@
+.topic-selector {
+  position: relative;
+  width: 100%;
+}
+
+.topic-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #2a2a2a;
+  color: #fff;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.topic-input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.topic-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #3a3a3a;
+  border: 1px solid #3a3a3a;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.topic-suggestion {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2a2a2a;
+  color: #fff;
+}
+
+.topic-suggestion:last-child {
+  border-bottom: none;
+}
+
+.topic-suggestion:hover {
+  background-color: #4a4a4a;
+}
+
+.topic-suggestion.active {
+  background-color: #2a4a6a;
+  color: #00d4ff;
+  font-weight: 500;
+}
+
+.topic-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.topic-checkmark {
+  color: #2ecc71;
+  font-weight: bold;
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.topic-empty {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  background: #3a3a3a;
+  border: 1px solid #3a3a3a;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}

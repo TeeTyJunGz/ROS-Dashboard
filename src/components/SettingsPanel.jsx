@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import ChartSettings from './ChartSettings'
+import TopicSelector from './TopicSelector'
+import { useWebSocket } from '../context/WebSocketContext'
 import './SettingsPanel.css'
 
 const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
+  const { availableTopics } = useWebSocket()
   const [settings, setSettings] = useState({
     subscribeTopic: widget?.config?.subscribeTopic || '',
     publishTopic: widget?.config?.publishTopic || '',
@@ -31,6 +35,32 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
 
   if (!isOpen || !widget) return null
 
+  // Special handling for ChartWidget with new multi-series settings
+  if (widget.type === 'chart') {
+    return (
+      <div className="settings-panel-overlay" onClick={onClose}>
+        <div className="settings-panel settings-panel-large" onClick={(e) => e.stopPropagation()}>
+          <div className="settings-panel-header">
+            <h2>Chart Widget Settings</h2>
+            <button className="settings-panel-close" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="settings-panel-content">
+            <ChartSettings
+              config={widget.config || {}}
+              onSave={(config) => {
+                onSave(config)
+                onClose()
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Generic settings for other widgets
   const canPublish = ['button', 'joystick'].includes(widget.type)
   const needsMaxData = ['chart', 'joystick', 'terminal'].includes(widget.type)
   const needsDataOut = ['button'].includes(widget.type)
@@ -80,7 +110,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     if (needsLabel) {
       config.label = settings.label || 'Button'
     }
-    
+
     if (needsPointSize) {
       const parsedPointSize = parseFloat(settings.pointSize)
       config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 2
@@ -116,11 +146,10 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
           {needsSubscribe && (
             <div className="settings-section">
               <label>Subscribe Topic</label>
-              <input
-                type="text"
+              <TopicSelector
                 value={settings.subscribeTopic}
-                onChange={(e) => setSettings({ ...settings, subscribeTopic: e.target.value })}
-                placeholder="e.g., /camera/image_raw"
+                onChange={(value) => setSettings({ ...settings, subscribeTopic: value })}
+                availableTopics={availableTopics || []}
               />
             </div>
           )}
@@ -128,11 +157,10 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
           {canPublish && (
             <div className="settings-section">
               <label>Publish Topic</label>
-              <input
-                type="text"
+              <TopicSelector
                 value={settings.publishTopic}
-                onChange={(e) => setSettings({ ...settings, publishTopic: e.target.value })}
-                placeholder="e.g., /cmd_vel"
+                onChange={(value) => setSettings({ ...settings, publishTopic: value })}
+                availableTopics={availableTopics || []}
               />
             </div>
           )}
