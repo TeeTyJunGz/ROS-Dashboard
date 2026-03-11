@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useWebSocket } from '../../context/WebSocketContext'
 import './JoystickWidget.css'
 
+const PUBLISH_INTERVAL_MS = 50
+
 const JoystickWidget = ({ widget }) => {
   const { publishMessage } = useWebSocket()
   const { publishTopic, maxData } = widget.config || {}
@@ -19,6 +21,7 @@ const JoystickWidget = ({ widget }) => {
   const [isDragging, setIsDragging] = useState(false)
   const joystickRef = useRef(null)
   const containerRef = useRef(null)
+  const lastPublishTimeRef = useRef(0)
 
   const handleMouseDown = (e) => {
     setIsDragging(true)
@@ -65,7 +68,13 @@ const JoystickWidget = ({ widget }) => {
 
   const publishVelocity = (linear, angular) => {
     if (topic) {
-      publishMessage(topic, 'geometry_msgs/Twist', {
+      const now = performance.now()
+      if ((linear !== 0 || angular !== 0) && now - lastPublishTimeRef.current < PUBLISH_INTERVAL_MS) {
+        return
+      }
+
+      lastPublishTimeRef.current = now
+      publishMessage(topic, 'geometry_msgs/msg/Twist', {
         linear: { x: linear, y: 0, z: 0 },
         angular: { x: 0, y: 0, z: angular }
       })

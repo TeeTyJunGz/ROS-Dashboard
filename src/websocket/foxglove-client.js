@@ -1,6 +1,17 @@
 import { FoxgloveClient } from '@foxglove/ws-protocol'
-import { MessageReader } from '@foxglove/rosmsg2-serialization'
+import { MessageReader, MessageWriter } from '@foxglove/rosmsg2-serialization'
 import { parse } from '@foxglove/rosmsg'
+
+const CLIENT_MESSAGE_DEFINITIONS = {
+  'std_msgs/msg/String': `string data`,
+  'geometry_msgs/msg/Twist': `geometry_msgs/msg/Vector3 linear
+geometry_msgs/msg/Vector3 angular
+================================================================================
+MSG: geometry_msgs/msg/Vector3
+float64 x
+float64 y
+float64 z`
+}
 
 /**
  * FoxgloveClientWrapper
@@ -17,6 +28,7 @@ export default class FoxgloveClientWrapper {
     this.messageReaders = new Map() // subscriptionId → MessageReader (KEY FIX!)
     this.channelsByTopic = new Map() // topic → {id, reader}
     this.subscriptionsByTopic = new Map() // topic → subscriptionId
+    this.clientAdvertisementsByKey = new Map() // topic::type -> { id, writer, schemaName }
     this.eventHandlers = new Map()
     this.isConnectedFlag = false
   }
@@ -224,10 +236,25 @@ export default class FoxgloveClientWrapper {
    * Publish a message (not yet implemented)
    */
   publishMessage(topic, messageType, data) {
-    console.warn(
-      `[Foxglove] Publishing to ${topic} not yet implemented. ` +
-      'Phase 2 will add CDR serialization support.'
-    )
+    if (!this.client || !this.isConnectedFlag) {
+      console.warn(`[Foxglove] Cannot publish to ${topic}: not connected`)
+      return false
+    }
+
+    try {
+      const schemaName = normalizeRosMessageType(messageType)
+      const clientChannel = this.ensureClientAdvertisement(topic, schemaName)
+      if (!clientChannel) {
+        return false
+      }
+
+      const serialized = clientChannel.writer.writeMessage(data)
+      this.client.sendMessage(clientChannel.id, serialized)
+      return true
+    } catch (error) {
+      console.error(`[Foxglove] Failed to publish to ${topic}:`, error)
+      return false
+    }
   }
 
   /**
@@ -244,6 +271,7 @@ export default class FoxgloveClientWrapper {
     this.messageReaders.clear()
     this.subscriptionsByTopic.clear()
     this.channelsByTopic.clear()
+    this.clientAdvertisementsByKey.clear()
   }
 
   /**
@@ -270,4 +298,54 @@ export default class FoxgloveClientWrapper {
   getTopics() {
     return Array.from(this.channelsByTopic.keys())
   }
+
+  ensureClientAdvertisement(topic, schemaName) {
+    const advertisementKey = `${topic}::${schemaName}`
+    const existingChannel = this.clientAdvertisementsByKey.get(advertisementKey)
+    if (existingChannel) {
+      return existingChannel
+    }
+
+    const schema = CLIENT_MESSAGE_DEFINITIONS[schemaName]
+    if (!schema) {
+      throw new Error(`Unsupported publish message type: ${schemaName}`)
+    }
+
+    const messageDefinitions = parse(schema, { ros2: true })
+    const writer = new MessageWriter(messageDefinitions)
+    const channelId = this.client.advertise({
+      topic,
+      encoding: 'cdr',
+      schemaName,
+      schemaEncoding: 'ros2msg',
+      schema
+    })
+
+    const advertisedChannel = {
+      id: channelId,
+      writer,
+      schemaName
+    }
+
+    this.clientAdvertisementsByKey.set(advertisementKey, advertisedChannel)
+    console.log(`[Foxglove] Advertised client channel for ${topic} (${schemaName})`)
+    return advertisedChannel
+  }
+}
+
+function normalizeRosMessageType(messageType) {
+  if (!messageType) {
+    throw new Error('Message type is required for publishing')
+  }
+
+  if (messageType.includes('/msg/')) {
+    return messageType
+  }
+
+  const parts = messageType.split('/').filter(Boolean)
+  if (parts.length === 2) {
+    return `${parts[0]}/msg/${parts[1]}`
+  }
+
+  return messageType
 }

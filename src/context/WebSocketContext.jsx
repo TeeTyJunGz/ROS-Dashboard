@@ -41,10 +41,10 @@ export const WebSocketProvider = ({ children, wsUrl = 'ws://localhost:8765' }) =
   const publishMessage = (topic, messageType, message) => {
     if (!clientRef.current || !clientRef.current.isConnected) {
       console.warn('[Dashboard] Foxglove Bridge not connected, cannot publish message')
-      return
+      return false
     }
 
-    clientRef.current.publishMessage(topic, messageType, message)
+    return clientRef.current.publishMessage(topic, messageType, message)
   }
 
   // Handle Foxglove message event

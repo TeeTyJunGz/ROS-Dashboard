@@ -9,7 +9,7 @@ const ButtonWidget = ({ widget }) => {
 
   const handleClick = () => {
     if (publishTopic) {
-      publishMessage(publishTopic, 'std_msgs/String', { data: dataOut || 'pressed' })
+      publishMessage(publishTopic, 'std_msgs/msg/String', { data: dataOut || 'pressed' })
     }
   }
 
