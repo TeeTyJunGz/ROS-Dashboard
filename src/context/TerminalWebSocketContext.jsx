@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 
 const TerminalContext = createContext(null)
 
-export const TerminalWebSocketProvider = ({ children }) => {
+export const TerminalWebSocketProvider = ({ children, wsUrl = 'ws://localhost:5001' }) => {
   const [isConnected, setIsConnected] = useState(false)
   const [output, setOutput] = useState('')
   const wsRef = useRef(null)
@@ -14,12 +14,27 @@ export const TerminalWebSocketProvider = ({ children }) => {
   useEffect(() => {
     isUnmountingRef.current = false
 
+    const closeCurrentSocket = () => {
+      if (wsRef.current) {
+        wsRef.current.onopen = null
+        wsRef.current.onmessage = null
+        wsRef.current.onerror = null
+        wsRef.current.onclose = null
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+
     const connectTerminal = () => {
       if (isUnmountingRef.current) return
+      if (!wsUrl) {
+        setIsConnected(false)
+        return
+      }
 
       try {
-        console.log('[Terminal] Connecting to ws://localhost:5001')
-        wsRef.current = new WebSocket('ws://localhost:5001')
+        console.log(`[Terminal] Connecting to ${wsUrl}`)
+        wsRef.current = new WebSocket(wsUrl)
 
         wsRef.current.onopen = () => {
           if (isUnmountingRef.current) return
@@ -76,6 +91,8 @@ export const TerminalWebSocketProvider = ({ children }) => {
       }
     }
 
+    setOutput('')
+    outputBufferRef.current = []
     connectTerminal()
 
     return () => {
@@ -83,11 +100,9 @@ export const TerminalWebSocketProvider = ({ children }) => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.close()
-      }
+      closeCurrentSocket()
     }
-  }, [])
+  }, [wsUrl])
 
   const sendInput = (data) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

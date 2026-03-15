@@ -12,6 +12,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     publishTopic: widget?.config?.publishTopic || '',
     messageType: widget?.config?.messageType || '',
     maxData: widget?.config?.maxData || '',
+    port: widget?.config?.port !== undefined ? widget.config.port.toString() : '',
     dataOut: widget?.config?.dataOut || '',
     field: widget?.config?.field || '',
     label: widget?.config?.label || '',
@@ -28,6 +29,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
         publishTopic: widget.config?.publishTopic || '',
         messageType: widget.config?.messageType || '',
         maxData: widget.config?.maxData || widget.config?.maxPoints || widget.config?.lines || (widget.config?.linearMax && widget.config?.angularMax ? `${widget.config.linearMax}, ${widget.config.angularMax}` : '') || '',
+        port: widget.config?.port !== undefined ? widget.config.port.toString() : '',
         dataOut: widget.config?.dataOut || widget.config?.message || '',
         field: widget.config?.field || '',
         label: widget.config?.label || '',
@@ -68,13 +70,14 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
 
   // Generic settings for other widgets
   const canPublish = ['button', 'joystick'].includes(widget.type)
-  const needsMaxData = ['chart', 'joystick', 'terminal'].includes(widget.type)
+  const needsMaxData = ['chart', 'joystick'].includes(widget.type)
   const needsDataOut = ['button'].includes(widget.type)
   const needsField = ['chart'].includes(widget.type)
-  const needsSubscribe = !['camera', 'button', 'joystick'].includes(widget.type)
+  const needsSubscribe = !['camera', 'button', 'joystick', 'terminal'].includes(widget.type)
   const needsLabel = widget.type === 'button'
   const needsPointSize = widget.type === 'lidar'
   const needsStreamUrl = widget.type === 'camera'
+  const needsTerminalPort = widget.type === 'terminal'
 
   const handleSave = () => {
     const config = {}
@@ -122,6 +125,11 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
       config.streamUrl = settings.streamUrl || ''
     }
 
+    if (needsTerminalPort) {
+      const parsedPort = parseInt(settings.port, 10)
+      config.port = Number.isFinite(parsedPort) ? parsedPort : 5001
+    }
+
     if (needsPointSize) {
       const parsedPointSize = parseFloat(settings.pointSize)
       config.pointSize = Number.isFinite(parsedPointSize) ? parsedPointSize : 0.1
@@ -132,7 +140,6 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     // Also update legacy config fields for backward compatibility
     if (needsMaxData && settings.maxData) {
       if (widget.type === 'chart') config.maxPoints = parseInt(settings.maxData, 10) || 100
-      if (widget.type === 'terminal') config.lines = parseInt(settings.maxData, 10) || 50
       if (widget.type === 'joystick') {
         const parts = settings.maxData.split(',')
         if (parts.length === 2) {
@@ -253,6 +260,23 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
               />
               <p className="settings-help-text">
                 Use an MJPEG or directly accessible image stream from the selected robot camera server.
+              </p>
+            </div>
+          )}
+
+          {needsTerminalPort && (
+            <div className="settings-section">
+              <label>Terminal Port</label>
+              <input
+                type="number"
+                value={settings.port || '5001'}
+                onChange={(e) => setSettings({ ...settings, port: e.target.value })}
+                placeholder="e.g., 5001"
+                min="1"
+                max="65535"
+              />
+              <p className="settings-help-text">
+                Connects this terminal widget to the selected robot IP using the specified PTY WebSocket port.
               </p>
             </div>
           )}

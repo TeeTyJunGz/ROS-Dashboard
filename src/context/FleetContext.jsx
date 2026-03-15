@@ -3,8 +3,10 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 const FleetContext = createContext()
 
 const DEFAULT_BRIDGE_PORT = 8765
+const DEFAULT_TERMINAL_PORT = 5001
 
 const buildBridgeUrl = (ip, bridgePort = DEFAULT_BRIDGE_PORT) => `ws://${ip}:${bridgePort}`
+const buildTerminalUrl = (ip, terminalPort = DEFAULT_TERMINAL_PORT) => `ws://${ip}:${terminalPort}`
 
 const DEFAULT_ROBOTS = [
   {
@@ -14,6 +16,7 @@ const DEFAULT_ROBOTS = [
     bridgePort: DEFAULT_BRIDGE_PORT,
     status: 'unknown',
     bridgeUrl: buildBridgeUrl('192.168.1.69', DEFAULT_BRIDGE_PORT),
+    terminalUrl: buildTerminalUrl('192.168.1.69', DEFAULT_TERMINAL_PORT),
     lastUpdated: new Date(),
   },
   {
@@ -23,6 +26,7 @@ const DEFAULT_ROBOTS = [
     bridgePort: DEFAULT_BRIDGE_PORT,
     status: 'unknown',
     bridgeUrl: buildBridgeUrl('192.168.1.85', DEFAULT_BRIDGE_PORT),
+    terminalUrl: buildTerminalUrl('192.168.1.85', DEFAULT_TERMINAL_PORT),
     lastUpdated: new Date(),
   },
 ]
@@ -60,6 +64,7 @@ const normalizeRobot = (robot) => {
     bridgePort,
     status: robot?.status || 'unknown',
     bridgeUrl: buildBridgeUrl(ip, bridgePort),
+    terminalUrl: robot?.terminalUrl || buildTerminalUrl(ip, DEFAULT_TERMINAL_PORT),
     lastUpdated: robot?.lastUpdated || new Date(),
   }
 }
@@ -157,7 +162,7 @@ export function FleetProvider({ children }) {
               ...robot,
               ip,
               bridgeUrl: buildBridgeUrl(ip, getBridgePortFromRobot(robot)),
-              terminalUrl: `ws://${ip}:5001`
+              terminalUrl: buildTerminalUrl(ip, DEFAULT_TERMINAL_PORT)
             }
           : robot
       )

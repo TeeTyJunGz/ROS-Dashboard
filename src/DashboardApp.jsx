@@ -75,7 +75,7 @@ function getDefaultConfig(widgetType, selectedRobot) {
     },
     lidar: { subscribeTopic: '/velodyne_points', pointSize: 0.1 },
     button: { publishTopic: '/cmd', dataOut: 'pressed', label: 'Button' },
-    terminal: { subscribeTopic: '/rosout', maxData: '50' },
+    terminal: { port: 5001 },
     joystick: { publishTopic: '/cmd_vel', maxData: '1.0, 1.0' },
     chart: { subscribeTopic: '/sensor_data', field: 'value', maxData: '100' },
     topicReader: { subscribeTopic: '/chatter', messageType: 'std_msgs/String' }
