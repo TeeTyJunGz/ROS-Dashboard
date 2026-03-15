@@ -15,6 +15,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
     dataOut: widget?.config?.dataOut || '',
     field: widget?.config?.field || '',
     label: widget?.config?.label || '',
+    streamUrl: widget?.config?.streamUrl || '',
     pointSize: widget?.config?.pointSize !== undefined ? widget.config.pointSize.toString() : '',
     useDistanceColor: widget?.config?.useDistanceColor !== false,
     customColor: widget?.config?.customColor || '#00d4ff'
@@ -30,6 +31,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
         dataOut: widget.config?.dataOut || widget.config?.message || '',
         field: widget.config?.field || '',
         label: widget.config?.label || '',
+        streamUrl: widget.config?.streamUrl || '',
         pointSize: widget.config?.pointSize !== undefined ? widget.config.pointSize.toString() : '',
         useDistanceColor: widget.config?.useDistanceColor !== false,
         customColor: widget.config?.customColor || '#00d4ff'
@@ -72,6 +74,7 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
   const needsSubscribe = !['camera', 'button', 'joystick'].includes(widget.type)
   const needsLabel = widget.type === 'button'
   const needsPointSize = widget.type === 'lidar'
+  const needsStreamUrl = widget.type === 'camera'
 
   const handleSave = () => {
     const config = {}
@@ -113,6 +116,10 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
 
     if (needsLabel) {
       config.label = settings.label || 'Button'
+    }
+
+    if (needsStreamUrl) {
+      config.streamUrl = settings.streamUrl || ''
     }
 
     if (needsPointSize) {
@@ -232,6 +239,21 @@ const SettingsPanel = ({ widget, isOpen, onClose, onSave }) => {
                 onChange={(e) => setSettings({ ...settings, label: e.target.value })}
                 placeholder="Button"
               />
+            </div>
+          )}
+
+          {needsStreamUrl && (
+            <div className="settings-section">
+              <label>Camera Stream URL</label>
+              <input
+                type="text"
+                value={settings.streamUrl}
+                onChange={(e) => setSettings({ ...settings, streamUrl: e.target.value })}
+                placeholder="e.g., http://192.168.1.69:8081/stream"
+              />
+              <p className="settings-help-text">
+                Use an MJPEG or directly accessible image stream from the selected robot camera server.
+              </p>
             </div>
           )}
 

@@ -1,50 +1,63 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { useFleet } from '../../context/FleetContext'
 import './CameraWidget.css'
 
+const DEFAULT_CAMERA_STREAM_PORT = 8081
+
 const CameraWidget = ({ widget }) => {
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
+  const { robotId } = useParams()
+  const { getRobot } = useFleet()
+  const selectedRobot = getRobot(robotId)
   const [error, setError] = useState(null)
   const [isActive, setIsActive] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const streamUrl = useMemo(() => {
+    if (widget?.config?.streamUrl) {
+      return widget.config.streamUrl
+    }
+
+    if (selectedRobot?.ip) {
+      return `http://${selectedRobot.ip}:${DEFAULT_CAMERA_STREAM_PORT}/stream`
+    }
+
+    return ''
+  }, [selectedRobot, widget])
+
+  const resolvedStreamUrl = useMemo(() => {
+    if (!streamUrl) {
+      return ''
+    }
+
+    const separator = streamUrl.includes('?') ? '&' : '?'
+    return `${streamUrl}${separator}t=${reloadToken}`
+  }, [streamUrl, reloadToken])
 
   useEffect(() => {
-    startCamera()
-    return () => {
-      stopCamera()
-    }
-  }, [])
-
-  const startCamera = async () => {
-    try {
-      setError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        }
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setIsActive(true)
-      }
-    } catch (err) {
-      console.error('Error accessing camera:', err)
-      setError('Failed to access camera. Please grant camera permissions.')
+    if (!streamUrl) {
+      setError('No camera stream URL configured for this widget.')
       setIsActive(false)
+      return
     }
+
+    setError(null)
+    setIsActive(false)
+  }, [streamUrl])
+
+  const handleLoad = () => {
+    setError(null)
+    setIsActive(true)
   }
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
+  const handleError = () => {
+    setError('Failed to load camera stream. Verify the robot camera server is running and the URL is reachable.')
     setIsActive(false)
+  }
+
+  const handleRetry = () => {
+    setReloadToken((value) => value + 1)
+    setError(null)
   }
 
   return (
@@ -52,18 +65,22 @@ const CameraWidget = ({ widget }) => {
       {error ? (
         <div className="camera-error">
           <p>{error}</p>
-          <button onClick={startCamera} className="camera-retry">
+          <button onClick={handleRetry} className="camera-retry">
             Retry
           </button>
         </div>
       ) : (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="camera-video"
-        />
+        <>
+          {!isActive && <div className="camera-loading">Connecting to camera stream...</div>}
+          <img
+            key={resolvedStreamUrl}
+            src={resolvedStreamUrl}
+            alt="Robot camera stream"
+            className={`camera-video ${isActive ? 'active' : 'loading'}`}
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        </>
       )}
     </div>
   )

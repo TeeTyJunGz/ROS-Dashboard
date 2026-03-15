@@ -125,7 +125,7 @@ const LidarWidget = ({ widget }) => {
           <pointLight position={[-10, 15, -10]} intensity={0.4} />
           
           {/* Grid helper for reference */}
-          <gridHelper args={[20, 10]} />
+          <gridHelper args={[20, 20]} />
           
           <PointCloudRenderer
             positions={pointData.positions}

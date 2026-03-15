@@ -22,6 +22,16 @@ const DASHBOARD_COLS = 12
 const ROW_HEIGHT = 60
 const PAGE_PANEL_WIDTH = 200
 
+const DEFAULT_CAMERA_STREAM_PORT = 8081
+
+const getDefaultCameraStreamUrl = (selectedRobot) => {
+  if (!selectedRobot?.ip) {
+    return ''
+  }
+
+  return `http://${selectedRobot.ip}:${DEFAULT_CAMERA_STREAM_PORT}/stream`
+}
+
 const getInitialState = (robotId) => {
   if (typeof window === 'undefined') {
     return DEFAULT_STATE
@@ -58,9 +68,11 @@ const getDefaultSize = (widgetType) => {
   return { w, h }
 }
 
-function getDefaultConfig(widgetType) {
+function getDefaultConfig(widgetType, selectedRobot) {
   const configs = {
-    camera: {},
+    camera: {
+      streamUrl: getDefaultCameraStreamUrl(selectedRobot)
+    },
     lidar: { subscribeTopic: '/velodyne_points', pointSize: 0.1 },
     button: { publishTopic: '/cmd', dataOut: 'pressed', label: 'Button' },
     terminal: { subscribeTopic: '/rosout', maxData: '50' },
@@ -111,14 +123,14 @@ function DashboardContent() {
       y: 0,
       w,
       h,
-      config: getDefaultConfig(widgetType)
+      config: getDefaultConfig(widgetType, selectedRobot)
     }
     setPages(prev => prev.map(page =>
       page.id === currentPageId
         ? { ...page, widgets: [...page.widgets, newWidget] }
         : page
     ))
-  }, [currentPageId])
+  }, [currentPageId, selectedRobot])
 
   const removeWidget = useCallback((widgetId) => {
     setPages(prev => prev.map(page => 
