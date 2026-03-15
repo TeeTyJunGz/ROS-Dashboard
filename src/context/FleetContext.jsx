@@ -1,238 +1,111 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth } from './AuthContext'
+import { apiRequest } from '../utils/api'
 
-const FleetContext = createContext()
-
-const DEFAULT_BRIDGE_PORT = 8765
-const DEFAULT_TERMINAL_PORT = 5001
-
-const buildBridgeUrl = (ip, bridgePort = DEFAULT_BRIDGE_PORT) => `ws://${ip}:${bridgePort}`
-const buildTerminalUrl = (ip, terminalPort = DEFAULT_TERMINAL_PORT) => `ws://${ip}:${terminalPort}`
-
-const DEFAULT_ROBOTS = [
-  {
-    id: 'turtlebot-1',
-    name: 'TurtleBot 1',
-    ip: '192.168.1.69',
-    bridgePort: DEFAULT_BRIDGE_PORT,
-    status: 'unknown',
-    bridgeUrl: buildBridgeUrl('192.168.1.69', DEFAULT_BRIDGE_PORT),
-    terminalUrl: buildTerminalUrl('192.168.1.69', DEFAULT_TERMINAL_PORT),
-    lastUpdated: new Date(),
-  },
-  {
-    id: 'turtlebot-2',
-    name: 'TurtleBot 2',
-    ip: '192.168.1.85',
-    bridgePort: DEFAULT_BRIDGE_PORT,
-    status: 'unknown',
-    bridgeUrl: buildBridgeUrl('192.168.1.85', DEFAULT_BRIDGE_PORT),
-    terminalUrl: buildTerminalUrl('192.168.1.85', DEFAULT_TERMINAL_PORT),
-    lastUpdated: new Date(),
-  },
-]
-
-const getBridgePortFromRobot = (robot) => {
-  if (Number.isFinite(robot?.bridgePort)) {
-    return robot.bridgePort
-  }
-
-  if (typeof robot?.bridgePort === 'string' && robot.bridgePort.trim() !== '') {
-    const parsedPort = parseInt(robot.bridgePort, 10)
-    if (Number.isFinite(parsedPort)) {
-      return parsedPort
-    }
-  }
-
-  if (typeof robot?.bridgeUrl === 'string') {
-    try {
-      return parseInt(new URL(robot.bridgeUrl).port, 10) || DEFAULT_BRIDGE_PORT
-    } catch (error) {
-      // Ignore malformed stored URLs and fall back to the default port.
-    }
-  }
-
-  return DEFAULT_BRIDGE_PORT
-}
+const FleetContext = createContext(null)
 
 const normalizeRobot = (robot) => {
-  const bridgePort = getBridgePortFromRobot(robot)
-  const ip = robot?.ip || '127.0.0.1'
-
   return {
     ...robot,
-    ip,
-    bridgePort,
     status: robot?.status || 'unknown',
-    bridgeUrl: buildBridgeUrl(ip, bridgePort),
-    terminalUrl: robot?.terminalUrl || buildTerminalUrl(ip, DEFAULT_TERMINAL_PORT),
-    lastUpdated: robot?.lastUpdated || new Date(),
+    permissions: {
+      canView: Boolean(robot?.permissions?.canView),
+      canControl: Boolean(robot?.permissions?.canControl),
+      canEdit: Boolean(robot?.permissions?.canEdit),
+    },
+    lastUpdated: robot?.lastUpdated || null,
   }
-}
-
-// Helper function to slugify names to IDs
-const slugifyName = (name) => {
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-}
-
-// Utility to get unique robotId when name changes
-const getUniqueRobotId = (name, existingRobots, excludeId = null) => {
-  let baseId = slugifyName(name)
-  let id = baseId
-  let counter = 2
-
-  // Check if this ID already exists (excluding current robot)
-  while (existingRobots.some(r => r.id === id && r.id !== excludeId)) {
-    id = `${baseId}-${counter}`
-    counter++
-  }
-
-  return id
-}
-
-// Load initial robots from localStorage or use defaults
-const getInitialRobots = () => {
-  if (typeof window === 'undefined') {
-    return DEFAULT_ROBOTS
-  }
-
-  try {
-    const stored = window.localStorage.getItem('robotsFleetData')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(normalizeRobot)
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load robots from localStorage:', error)
-  }
-
-  return DEFAULT_ROBOTS
 }
 
 export function FleetProvider({ children }) {
-  const [robots, setRobots] = useState(getInitialRobots())
+  const { isAuthenticated, loading: authLoading } = useAuth()
+  const [robots, setRobots] = useState([])
+  const [selectedRobotId, setSelectedRobotId] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const [selectedRobotId, setSelectedRobotId] = useState('turtlebot-1')
-
-  // Save robots to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem('robotsFleetData', JSON.stringify(robots))
-    } catch (error) {
-      console.error('Failed to persist robots to localStorage:', error)
+  const refreshRobots = useCallback(async () => {
+    if (!isAuthenticated) {
+      setRobots([])
+      setSelectedRobotId(null)
+      setLoading(false)
+      return
     }
-  }, [robots])
+
+    setLoading(true)
+    try {
+      const response = await apiRequest('/api/robots')
+      const nextRobots = (response.robots || []).map(normalizeRobot)
+      setRobots(nextRobots)
+      setSelectedRobotId((current) => {
+        if (current && nextRobots.some((robot) => robot.id === current)) {
+          return current
+        }
+        return nextRobots[0]?.id || null
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (authLoading) {
+      return
+    }
+
+    refreshRobots().catch((error) => {
+      console.error('Failed to load robots:', error)
+      setLoading(false)
+    })
+  }, [authLoading, refreshRobots])
 
   const selectRobot = useCallback((robotId) => {
     setSelectedRobotId(robotId)
   }, [])
 
-  const updateRobotName = useCallback((robotId, name) => {
-    setRobots((prevRobots) => {
-      // Generate new ID based on the new name
-      const newId = getUniqueRobotId(name, prevRobots, robotId)
-      
-      // Update robot with new name and ID
-      const updatedRobots = prevRobots.map((robot) => {
-        if (robot.id === robotId) {
-          return { ...robot, name, id: newId }
-        }
-        return robot
-      })
-
-      // If the selected robot was renamed, update selected ID
-      if (selectedRobotId === robotId) {
-        setSelectedRobotId(newId)
-      }
-
-      return updatedRobots
+  const updateRobot = useCallback(async (robotId, patch) => {
+    const response = await apiRequest(`/api/robots/${robotId}`, {
+      method: 'PUT',
+      body: patch,
     })
-  }, [selectedRobotId])
 
-  const updateRobotIP = useCallback((robotId, ip) => {
-    setRobots((prevRobots) =>
-      prevRobots.map((robot) =>
-        robot.id === robotId
-          ? {
-              ...robot,
-              ip,
-              bridgeUrl: buildBridgeUrl(ip, getBridgePortFromRobot(robot)),
-              terminalUrl: buildTerminalUrl(ip, DEFAULT_TERMINAL_PORT)
-            }
-          : robot
-      )
-    )
+    setRobots((current) => current.map((robot) => (robot.id === robotId ? normalizeRobot(response.robot) : robot)))
+    return response.robot
   }, [])
 
-  const updateRobotBridgePort = useCallback((robotId, bridgePort) => {
-    const parsedPort = parseInt(bridgePort, 10)
-    const nextBridgePort = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_BRIDGE_PORT
-
-    setRobots((prevRobots) =>
-      prevRobots.map((robot) =>
-        robot.id === robotId
-          ? {
-              ...robot,
-              bridgePort: nextBridgePort,
-              bridgeUrl: buildBridgeUrl(robot.ip, nextBridgePort)
-            }
-          : robot
-      )
-    )
-  }, [])
+  const updateRobotName = useCallback((robotId, name) => updateRobot(robotId, { name }), [updateRobot])
+  const updateRobotIP = useCallback((robotId, ip) => updateRobot(robotId, { ip }), [updateRobot])
+  const updateRobotBridgePort = useCallback((robotId, bridgePort) => updateRobot(robotId, { bridgePort: parseInt(bridgePort, 10) || 8765 }), [updateRobot])
 
   const updateRobotStatus = useCallback((robotId, status) => {
-    setRobots((prevRobots) => {
-      let hasChanged = false
-
-      const nextRobots = prevRobots.map((robot) => {
-        if (robot.id !== robotId) {
+    setRobots((current) => current.map((robot) => {
+        if (robot.id !== robotId || robot.status === status) {
           return robot
         }
-
-        if (robot.status === status) {
-          return robot
-        }
-
-        hasChanged = true
-        return { ...robot, status, lastUpdated: new Date() }
-      })
-
-      return hasChanged ? nextRobots : prevRobots
-    })
+        return { ...robot, status, lastUpdated: new Date().toISOString() }
+      }))
   }, [])
 
   const getRobot = useCallback((robotId) => {
-    return robots.find((r) => r.id === robotId)
-  }, [robots])
-
-  const getRobotByOldId = useCallback((oldId) => {
-    // This is used to find a robot even if its ID has changed
-    // For now, we'll just return the same as getRobot
-    return robots.find((r) => r.id === oldId)
+    return robots.find((r) => r.id === robotId) || null
   }, [robots])
 
   const getSelectedRobot = useCallback(() => {
-    return robots.find((r) => r.id === selectedRobotId)
+    return robots.find((r) => r.id === selectedRobotId) || null
   }, [robots, selectedRobotId])
 
-  const value = {
+  const value = useMemo(() => ({
     robots,
     selectedRobotId,
+    loading,
+    refreshRobots,
     selectRobot,
     updateRobotName,
     updateRobotIP,
     updateRobotBridgePort,
     updateRobotStatus,
     getRobot,
-    getRobotByOldId,
     getSelectedRobot,
-  }
+  }), [getRobot, getSelectedRobot, loading, refreshRobots, robots, selectedRobotId, selectRobot, updateRobotBridgePort, updateRobotIP, updateRobotName, updateRobotStatus])
 
   return <FleetContext.Provider value={value}>{children}</FleetContext.Provider>
 }

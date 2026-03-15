@@ -19,7 +19,7 @@ const WIDGET_COMPONENTS = {
   topicReader: TopicReaderWidget
 }
 
-const Widget = ({ widget, onRemove, onOpenSettings }) => {
+const Widget = ({ widget, onRemove, onOpenSettings, canEdit = true }) => {
   const WidgetComponent = WIDGET_COMPONENTS[widget.type]
 
   if (!WidgetComponent) {
@@ -48,6 +48,7 @@ const Widget = ({ widget, onRemove, onOpenSettings }) => {
             onClick={(e) => handleButtonClick(e, () => onOpenSettings(widget.id))}
             onMouseDown={(e) => e.stopPropagation()}
             title="Settings"
+            disabled={!canEdit}
           >
             <Settings size={16} />
           </button>
@@ -56,6 +57,7 @@ const Widget = ({ widget, onRemove, onOpenSettings }) => {
             onClick={(e) => handleButtonClick(e, () => onRemove(widget.id))}
             onMouseDown={(e) => e.stopPropagation()}
             title="Remove widget"
+            disabled={!canEdit}
           >
             <X size={16} />
           </button>

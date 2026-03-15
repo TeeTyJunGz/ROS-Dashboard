@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Cpu, Wifi } from 'lucide-react'
 import { useFleet } from '../context/FleetContext'
+import { useAuth } from '../context/AuthContext'
 import RobotCard from './RobotCard'
 import './RobotSelectionPage.css'
 
@@ -10,6 +11,7 @@ const ROBOT_STATUS_POLL_MS = 5000
 export default function RobotSelectionPage() {
   const navigate = useNavigate()
   const { robots, selectRobot, updateRobotStatus } = useFleet()
+  const { user, isAdmin, logout } = useAuth()
 
   useEffect(() => {
     // Page title
@@ -27,6 +29,7 @@ export default function RobotSelectionPage() {
       try {
         const response = await fetch('/api/robots/status', {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
           },
@@ -80,11 +83,22 @@ export default function RobotSelectionPage() {
           </div>
           <div className="header-info">
             <div className="info-badge">
+              <span>{user?.username}</span>
+            </div>
+            {isAdmin && (
+              <Link className="info-badge" to="/admin">
+                Permission
+              </Link>
+            )}
+            <div className="info-badge">
               <Wifi size={18} />
               <span>
                 {onlineCount}/{robots.length} Online
               </span>
             </div>
+            <button className="info-badge" onClick={logout}>
+              Logout
+            </button>
           </div>
         </div>
         <p className="header-subtitle">Select a robot to view its dashboard and control panel</p>

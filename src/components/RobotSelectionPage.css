@@ -58,6 +58,13 @@
   color: #33e4ff;
   font-size: 14px;
   font-weight: 500;
+  text-decoration: none;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+button.info-badge {
+  cursor: pointer;
+  font: inherit;
 }
 
 .info-badge svg {

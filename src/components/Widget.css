@@ -55,6 +55,12 @@
   pointer-events: auto;
 }
 
+.widget-settings:disabled,
+.widget-close:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .widget-content {
   flex: 1;
   padding: 0;

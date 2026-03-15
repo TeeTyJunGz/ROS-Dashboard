@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useWebSocket } from '../../context/WebSocketContext'
+import { useRobotAccess } from '../../context/RobotAccessContext'
 import './JoystickWidget.css'
 
 const PUBLISH_INTERVAL_MS = 50
 
 const JoystickWidget = ({ widget }) => {
   const { publishMessage } = useWebSocket()
+  const { canControlWidgets } = useRobotAccess()
   const { publishTopic, maxData } = widget.config || {}
   const topic = publishTopic
   let linearMax = 1.0
@@ -24,6 +26,10 @@ const JoystickWidget = ({ widget }) => {
   const lastPublishTimeRef = useRef(0)
 
   const handleMouseDown = (e) => {
+    if (!canControlWidgets) {
+      return
+    }
+
     setIsDragging(true)
     updatePosition(e)
   }
@@ -67,7 +73,7 @@ const JoystickWidget = ({ widget }) => {
   }
 
   const publishVelocity = (linear, angular) => {
-    if (topic) {
+    if (topic && canControlWidgets) {
       const now = performance.now()
       if ((linear !== 0 || angular !== 0) && now - lastPublishTimeRef.current < PUBLISH_INTERVAL_MS) {
         return
@@ -90,7 +96,7 @@ const JoystickWidget = ({ widget }) => {
         window.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [isDragging])
+  }, [canControlWidgets, isDragging])
 
   return (
     <div className="joystick-widget">
@@ -98,6 +104,7 @@ const JoystickWidget = ({ widget }) => {
         ref={containerRef}
         className="joystick-container"
         onMouseDown={handleMouseDown}
+        style={{ opacity: canControlWidgets ? 1 : 0.5, pointerEvents: canControlWidgets ? 'auto' : 'none' }}
       >
         <div
           ref={joystickRef}

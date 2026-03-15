@@ -29,7 +29,7 @@ const pxToGrid = (px, isHeight = false, dashboardWidth) => {
   return Math.ceil(px / colWidth)
 }
 
-const Dashboard = ({ widgets, onRemoveWidget, onLayoutChange, onOpenSettings }) => {
+const Dashboard = ({ widgets, onRemoveWidget, onLayoutChange, onOpenSettings, canEdit = true }) => {
   const dashboardWidth = window.innerWidth - 200 // Account for page panel
 
   const layout = useMemo(() => {
@@ -70,6 +70,8 @@ const Dashboard = ({ widgets, onRemoveWidget, onLayoutChange, onOpenSettings }) 
           width={dashboardWidth}
           onLayoutChange={handleLayoutChange}
           draggableHandle=".widget-header"
+          isDraggable={canEdit}
+          isResizable={canEdit}
         >
           {widgets.map(widget => (
             <div key={widget.id} className="widget-container">
@@ -77,6 +79,7 @@ const Dashboard = ({ widgets, onRemoveWidget, onLayoutChange, onOpenSettings }) 
                 widget={widget}
                 onRemove={onRemoveWidget}
                 onOpenSettings={onOpenSettings}
+                canEdit={canEdit}
               />
             </div>
           ))}

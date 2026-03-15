@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { X, Upload, Download } from 'lucide-react'
 import './DashboardManager.css'
 
-const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) => {
+const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport, canEdit = true }) => {
   const fileInputRef = useRef(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -15,6 +15,7 @@ const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) =
     try {
       const response = await fetch(`${API_BASE_URL}/api/dashboard/export`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -64,6 +65,7 @@ const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) =
 
       const response = await fetch(`${API_BASE_URL}/api/dashboard/import`, {
         method: 'POST',
+        credentials: 'include',
         body: formData
       })
 
@@ -97,7 +99,7 @@ const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) =
             Export your current dashboard configuration or import one shared by a teammate.
           </p>
           <div className="manager-actions">
-            <button className="manager-action-button" onClick={handleImportClick} disabled={loading}>
+            <button className="manager-action-button" onClick={handleImportClick} disabled={loading || !canEdit}>
               <Download size={18} />
               <span>{loading ? 'Processing...' : 'Import Dashboard'}</span>
             </button>
@@ -113,6 +115,7 @@ const DashboardManager = ({ isOpen, onClose, pages, currentPageId, onImport }) =
               onChange={handleFileChange}
             />
           </div>
+          {!canEdit && <div className="manager-error">Import is disabled for view-only users.</div>}
           {error && <div className="manager-error">{error}</div>}
         </div>
       </div>

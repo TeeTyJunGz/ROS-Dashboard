@@ -1,14 +1,16 @@
 import React from 'react'
 import { useWebSocket } from '../../context/WebSocketContext'
+import { useRobotAccess } from '../../context/RobotAccessContext'
 import './ButtonWidget.css'
 
 const ButtonWidget = ({ widget }) => {
   const { publishMessage } = useWebSocket()
+  const { canControlWidgets } = useRobotAccess()
   const { publishTopic, dataOut, label } = widget.config || {}
   const buttonLabel = label || 'Button'
 
   const handleClick = () => {
-    if (publishTopic) {
+    if (publishTopic && canControlWidgets) {
       publishMessage(publishTopic, 'std_msgs/msg/String', { data: dataOut || 'pressed' })
     }
   }
@@ -18,7 +20,7 @@ const ButtonWidget = ({ widget }) => {
       <button
         className="button-action"
         onClick={handleClick}
-        disabled={!publishTopic}
+        disabled={!publishTopic || !canControlWidgets}
       >
       {buttonLabel}
       </button>

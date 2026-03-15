@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Power, Edit2, Check, X } from 'lucide-react'
 import { useFleet } from '../context/FleetContext'
+import { useAuth } from '../context/AuthContext'
 import './RobotCard.css'
 
 export default function RobotCard({ robot, onSelect }) {
   const { updateRobotName, updateRobotIP, updateRobotBridgePort } = useFleet()
+  const { isAdmin } = useAuth()
+  const canEditRobot = isAdmin
   const [isEditingName, setIsEditingName] = useState(false)
   const [isEditingIP, setIsEditingIP] = useState(false)
   const [isEditingPort, setIsEditingPort] = useState(false)
@@ -22,7 +25,9 @@ export default function RobotCard({ robot, onSelect }) {
 
   const handleSaveName = () => {
     if (tempName.trim()) {
-      updateRobotName(oldRobotId, tempName)
+      updateRobotName(oldRobotId, tempName).catch((error) => {
+        console.error('Failed to update robot name:', error)
+      })
       setIsEditingName(false)
     }
   }
@@ -37,7 +42,9 @@ export default function RobotCard({ robot, onSelect }) {
 
   const handleSaveIP = () => {
     if (tempIP.trim()) {
-      updateRobotIP(robot.id, tempIP)
+      updateRobotIP(robot.id, tempIP).catch((error) => {
+        console.error('Failed to update robot IP:', error)
+      })
       setIsEditingIP(false)
     }
   }
@@ -52,7 +59,9 @@ export default function RobotCard({ robot, onSelect }) {
 
   const handleSavePort = () => {
     if (tempPort.trim()) {
-      updateRobotBridgePort(robot.id, tempPort)
+      updateRobotBridgePort(robot.id, tempPort).catch((error) => {
+        console.error('Failed to update robot bridge port:', error)
+      })
       setIsEditingPort(false)
     }
   }
@@ -132,6 +141,7 @@ export default function RobotCard({ robot, onSelect }) {
                 onClick={() => setIsEditingName(true)}
                 className="edit-btn"
                 title="Rename robot"
+                disabled={!canEditRobot}
               >
                 <Edit2 size={16} />
               </button>
@@ -175,6 +185,7 @@ export default function RobotCard({ robot, onSelect }) {
                 onClick={() => setIsEditingIP(true)}
                 className="edit-btn"
                 title="Edit IP"
+                disabled={!canEditRobot}
               >
                 <Edit2 size={14} />
               </button>
@@ -229,6 +240,7 @@ export default function RobotCard({ robot, onSelect }) {
                 onClick={() => setIsEditingPort(true)}
                 className="edit-btn"
                 title="Edit bridge port"
+                disabled={!canEditRobot}
               >
                 <Edit2 size={14} />
               </button>
@@ -240,13 +252,21 @@ export default function RobotCard({ robot, onSelect }) {
           <label>Bridge URL</label>
           <p className="robot-port robot-bridge-url">{robot.bridgeUrl}</p>
         </div>
+
+        <div className="robot-info-group">
+          <label>Access</label>
+          <p className="robot-port robot-bridge-url">
+            {robot.permissions?.canControl ? 'Control' : 'View'}
+            {robot.permissions?.canEdit ? ' + Edit' : ''}
+          </p>
+        </div>
       </div>
 
       <div className="robot-card-footer">
         <button
           onClick={() => onSelect(robot.id)}
           className="select-btn"
-          disabled={robot.status === 'offline'}
+          disabled={robot.status === 'offline' || !robot.permissions?.canView}
         >
           Open Dashboard →
         </button>

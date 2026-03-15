@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import './PageTabs.css'
 
-const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename, onPageDelete }) => {
+const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename, onPageDelete, canEdit = true }) => {
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, pageId: null })
@@ -48,6 +48,10 @@ const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename,
   }, [contextMenu.visible])
 
   const handleContextMenu = (e, pageId) => {
+    if (!canEdit) {
+      return
+    }
+
     e.preventDefault()
     const menuWidth = 180
     const menuHeight = 60
@@ -109,7 +113,11 @@ const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename,
             ) : (
               <span
                 className="page-tab-name"
-                onDoubleClick={() => handleRenameStart(page)}
+                onDoubleClick={() => {
+                  if (canEdit) {
+                    handleRenameStart(page)
+                  }
+                }}
               >
                 {page.name}
               </span>
@@ -120,12 +128,13 @@ const PageTabs = ({ pages, currentPageId, onPageChange, onPageAdd, onPageRename,
       <button
         className="page-tab-add"
         onClick={onPageAdd}
-        title="Add new page"
+        title={canEdit ? 'Add new page' : 'Edit permission required'}
+        disabled={!canEdit}
       >
         <Plus size={18} />
       </button>
 
-      {contextMenu.visible && (
+      {contextMenu.visible && canEdit && (
         <div
           className="page-context-menu-overlay"
           onClick={() => setContextMenu({ visible: false, x: 0, y: 0, pageId: null })}

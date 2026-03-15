@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useFleet } from '../../context/FleetContext'
+import { useRobotAccess } from '../../context/RobotAccessContext'
 import './TerminalWidget.css'
 
 const RECONNECT_DELAY_MS = 3000
@@ -10,6 +11,7 @@ const MAX_OUTPUT_LINES = 1000
 const TerminalWidget = ({ widget }) => {
   const { robotId } = useParams()
   const { getRobot } = useFleet()
+  const { canControlWidgets } = useRobotAccess()
   const selectedRobot = getRobot(robotId)
   const [command, setCommand] = useState('')
   const [isConnected, setIsConnected] = useState(false)
@@ -56,7 +58,7 @@ const TerminalWidget = ({ widget }) => {
     }
 
     const connectTerminal = () => {
-      if (isUnmountingRef.current || !terminalUrl) {
+      if (isUnmountingRef.current || !terminalUrl || !canControlWidgets) {
         setIsConnected(false)
         return
       }
@@ -117,10 +119,10 @@ const TerminalWidget = ({ widget }) => {
       }
       closeCurrentSocket()
     }
-  }, [terminalUrl])
+  }, [canControlWidgets, terminalUrl])
 
   const sendInput = (data) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (canControlWidgets && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'input',
         data
@@ -178,7 +180,9 @@ const TerminalWidget = ({ widget }) => {
       </div>
 
       <div className="terminal-output" ref={outputRef}>
-        {!isConnected ? (
+        {!canControlWidgets ? (
+          <div className="terminal-waiting">Acquire the control lock to use the terminal.</div>
+        ) : !isConnected ? (
           <div className="terminal-waiting">Connecting to terminal...</div>
         ) : output ? (
           <div dangerouslySetInnerHTML={{ __html: output }} />
@@ -196,7 +200,7 @@ const TerminalWidget = ({ widget }) => {
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Enter command (e.g., ls, ros2 topic list, ros2 topic echo /chatter)"
-          disabled={!isConnected}
+          disabled={!isConnected || !canControlWidgets}
           className="terminal-input"
           autoFocus
           spellCheck="false"
