@@ -10,8 +10,10 @@ const { randomUUID } = require('crypto')
 const AnsiToHtml = require('ansi-to-html')
 const {
   countAdminUsers,
+  createRobot,
   createUser,
   DB_PATH,
+  deleteRobot,
   deleteUser,
   getDashboard,
   getLock,
@@ -105,6 +107,37 @@ function serializeRobotForUser(user, robot) {
     ...robot,
     permissions: getAccessForRobot(user, robot.id),
   }
+}
+
+function sanitizeRobotName(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function sanitizeRobotIp(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function sanitizePort(value, fallback) {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    return fallback
+  }
+  return parsed
+}
+
+function createRobotId(name) {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'robot'
+
+  let candidateId = slug
+  while (getRobotById(candidateId)) {
+    candidateId = `${slug}-${randomUUID().slice(0, 8)}`
+  }
+
+  return candidateId
 }
 
 function requirePermission(permissionKey) {
@@ -292,6 +325,31 @@ app.get('/api/robots', requireAuth, (req, res) => {
   res.json({ robots })
 })
 
+app.post('/api/robots', requireAuth, requireAdmin, (req, res) => {
+  const name = sanitizeRobotName(req.body?.name)
+  const ip = sanitizeRobotIp(req.body?.ip)
+
+  if (!name) {
+    return res.status(400).json({ error: 'Robot name is required' })
+  }
+
+  if (!ip) {
+    return res.status(400).json({ error: 'Robot IP address is required' })
+  }
+
+  const robotId = createRobotId(name)
+  const robot = createRobot({
+    id: robotId,
+    name,
+    ip,
+    bridgePort: sanitizePort(req.body?.bridgePort, 8765),
+    terminalPort: sanitizePort(req.body?.terminalPort, 5001),
+    mjpegPort: sanitizePort(req.body?.mjpegPort, 8081),
+  })
+
+  res.status(201).json({ robot: serializeRobotForUser(req.user, robot) })
+})
+
 app.put('/api/robots/:robotId', requireAuth, requireAdmin, (req, res) => {
   const robot = getRobotById(req.params.robotId)
   if (!robot) {
@@ -313,6 +371,16 @@ app.put('/api/robots/:robotId', requireAuth, requireAdmin, (req, res) => {
   })
 
   res.json({ robot: serializeRobotForUser(req.user, updatedRobot) })
+})
+
+app.delete('/api/robots/:robotId', requireAuth, requireAdmin, (req, res) => {
+  const robot = getRobotById(req.params.robotId)
+  if (!robot) {
+    return res.status(404).json({ error: 'Robot not found' })
+  }
+
+  deleteRobot(req.params.robotId)
+  res.json({ success: true })
 })
 
 /**

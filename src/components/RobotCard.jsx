@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Power, Edit2, Check, X } from 'lucide-react'
+import { Power, Edit2, Check, Trash2, X } from 'lucide-react'
 import { useFleet } from '../context/FleetContext'
 import { useAuth } from '../context/AuthContext'
 import './RobotCard.css'
 
-export default function RobotCard({ robot, onSelect }) {
+export default function RobotCard({ robot, onSelect, onDelete, isDeleting = false, disableDelete = false }) {
   const { updateRobotName, updateRobotIP, updateRobotBridgePort } = useFleet()
   const { isAdmin } = useAuth()
   const canEditRobot = isAdmin
@@ -270,6 +270,17 @@ export default function RobotCard({ robot, onSelect }) {
         >
           Open Dashboard →
         </button>
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="delete-btn"
+            disabled={disableDelete}
+            type="button"
+            title={isDeleting ? 'Deleting robot' : `Delete ${robot.name}`}
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
     </div>
   )

@@ -163,9 +163,19 @@ const getRobotByIdStatement = db.prepare(`
   WHERE id = ?
 `)
 
+const createRobotStatement = db.prepare(`
+  INSERT INTO robots (id, name, ip, bridge_port, terminal_port, mjpeg_port)
+  VALUES (?, ?, ?, ?, ?, ?)
+`)
+
 const updateRobotStatement = db.prepare(`
   UPDATE robots
   SET name = ?, ip = ?, bridge_port = ?, terminal_port = ?, mjpeg_port = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`)
+
+const deleteRobotStatement = db.prepare(`
+  DELETE FROM robots
   WHERE id = ?
 `)
 
@@ -294,9 +304,18 @@ function getRobotById(robotId) {
   return robot ? buildRobotUrls(robot) : null
 }
 
+function createRobot(robot) {
+  createRobotStatement.run(robot.id, robot.name, robot.ip, robot.bridgePort, robot.terminalPort, robot.mjpegPort)
+  return getRobotById(robot.id)
+}
+
 function updateRobot(robotId, robot) {
   updateRobotStatement.run(robot.name, robot.ip, robot.bridgePort, robot.terminalPort, robot.mjpegPort, robotId)
   return getRobotById(robotId)
+}
+
+function deleteRobot(robotId) {
+  return deleteRobotStatement.run(robotId)
 }
 
 function listPermissionsForUser(userId) {
@@ -363,7 +382,9 @@ module.exports = {
   DB_PATH,
   DEFAULT_ROBOTS,
   countAdminUsers,
+  createRobot,
   createUser,
+  deleteRobot,
   deleteUser,
   getDashboard,
   getLock,

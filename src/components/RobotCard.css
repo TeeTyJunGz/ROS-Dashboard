@@ -3,7 +3,6 @@
   border: 2px solid #3a3a4e;
   border-radius: 12px;
   padding: 20px;
-  margin: 15px;
   width: 350px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
@@ -186,6 +185,7 @@
 .robot-card-footer {
   display: flex;
   gap: 8px;
+  align-items: stretch;
 }
 
 .select-btn {
@@ -216,4 +216,29 @@
 
 .select-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.delete-btn {
+  width: 48px;
+  min-width: 48px;
+  border: 1px solid rgba(239, 68, 68, 0.34);
+  border-radius: 8px;
+  background: rgba(74, 13, 18, 0.76);
+  color: #ff9b9b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: rgba(111, 20, 28, 0.9);
+  border-color: rgba(248, 113, 113, 0.6);
+  transform: translateY(-2px);
+}
+
+.delete-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }

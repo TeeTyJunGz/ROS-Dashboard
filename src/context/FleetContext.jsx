@@ -76,6 +76,25 @@ export function FleetProvider({ children }) {
   const updateRobotIP = useCallback((robotId, ip) => updateRobot(robotId, { ip }), [updateRobot])
   const updateRobotBridgePort = useCallback((robotId, bridgePort) => updateRobot(robotId, { bridgePort: parseInt(bridgePort, 10) || 8765 }), [updateRobot])
 
+  const createRobot = useCallback(async (robotInput) => {
+    const response = await apiRequest('/api/robots', {
+      method: 'POST',
+      body: robotInput,
+    })
+
+    await refreshRobots()
+    setSelectedRobotId(response.robot.id)
+    return response.robot
+  }, [refreshRobots])
+
+  const deleteRobot = useCallback(async (robotId) => {
+    await apiRequest(`/api/robots/${robotId}`, {
+      method: 'DELETE',
+    })
+
+    await refreshRobots()
+  }, [refreshRobots])
+
   const updateRobotStatus = useCallback((robotId, status) => {
     setRobots((current) => current.map((robot) => {
         if (robot.id !== robotId || robot.status === status) {
@@ -99,13 +118,15 @@ export function FleetProvider({ children }) {
     loading,
     refreshRobots,
     selectRobot,
+    createRobot,
+    deleteRobot,
     updateRobotName,
     updateRobotIP,
     updateRobotBridgePort,
     updateRobotStatus,
     getRobot,
     getSelectedRobot,
-  }), [getRobot, getSelectedRobot, loading, refreshRobots, robots, selectedRobotId, selectRobot, updateRobotBridgePort, updateRobotIP, updateRobotName, updateRobotStatus])
+  }), [createRobot, deleteRobot, getRobot, getSelectedRobot, loading, refreshRobots, robots, selectedRobotId, selectRobot, updateRobotBridgePort, updateRobotIP, updateRobotName, updateRobotStatus])
 
   return <FleetContext.Provider value={value}>{children}</FleetContext.Provider>
 }
