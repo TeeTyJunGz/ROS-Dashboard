@@ -460,7 +460,6 @@ npm run dev       # run frontend only
 npm run server    # run backend only
 npm run dev:all   # run frontend and backend together
 npm run build     # production build
-npm run preview   # preview production frontend build
 ```
 
 ## Access Control Model
@@ -500,67 +499,3 @@ Each robot dashboard supports:
 - import/export as JSON
 - connection status display
 - access notices for view-only or locked control state
-
-## Troubleshooting
-
-### Foxglove Bridge is not connecting
-
-Check:
-
-```bash
-ros2 run foxglove_bridge foxglove_bridge
-```
-
-Also confirm:
-- the robot IP is correct in the robot manager
-- the bridge port is correct
-- firewall rules are not blocking the connection
-
-### Login does not work
-
-Check that you exported:
-
-```bash
-export ADMIN_USERNAME=admin
-export ADMIN_PASSWORD=admin123
-```
-
-Then start the backend.
-
-If the database already contains users, changing these values will not overwrite the existing admin user.
-
-### Camera widget is blank
-
-Check:
-- an MJPEG server is running
-- the robot MJPEG port is correct
-- the stream URL is reachable from the browser
-
-### Terminal widget does not work
-
-Check:
-- the backend server is running
-- the selected robot has the correct terminal port
-- your user has control permission
-- you acquired the control lock
-
-### Dashboard saves are not updating
-
-Check:
-- your user has edit permission for that robot
-- the backend server is running
-- the robot dashboard API is reachable
-
-## Technology Stack
-
-- **Frontend:** React, Vite, React Router, React Grid Layout, Three.js, Recharts
-- **Backend:** Node.js, Express, WebSocket, node-pty, SQLite
-- **ROS Integration:** Foxglove Bridge, ROS 2 Humble
-
-## Repository Notes
-
-This repository already includes ROS-side workspace content under `ros2_ws/`, including Foxglove Bridge source and LiDAR mock packages. That makes it possible to test the project without setting up every ROS package from scratch.
-
-## License
-
-Use according to your project or organization requirements.
