@@ -60,6 +60,12 @@ Create the first admin login:
 export ADMIN_USERNAME=admin
 export ADMIN_PASSWORD=admin123
 ```
+or you can change in server.js
+
+```js
+  const username = 'admin'
+  const password = 'admin123'
+```
 
 Start the dashboard frontend and backend:
 

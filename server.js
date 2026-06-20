@@ -198,8 +198,8 @@ function ensureBootstrapAdmin() {
     return
   }
 
-  const username = process.env.ADMIN_USERNAME
-  const password = process.env.ADMIN_PASSWORD
+  const username = 'admin'
+  const password = 'admin123'
 
   if (!username || !password) {
     console.warn('[Auth] No admin users found. Set ADMIN_USERNAME and ADMIN_PASSWORD before starting the server.')
